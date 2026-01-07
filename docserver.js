@@ -19,8 +19,10 @@ const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 let doc_dir = process.cwd();
 // Get document directory from command line arguments
 const args = process.argv.slice(2);
-if (args.length === 0) {
-  console.error('Usage: docserver.js <directory>');
+if (args.includes('--help') || args.includes('-h')) {
+  console.error('Usage: docserver.js [--help|-h] <directory>');
+  console.error('  --help|-h: Show this help message');
+  console.error('  <directory>: The directory to serve (default: current directory)');
   process.exit(1);
 }
 
