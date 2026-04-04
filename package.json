@@ -1,14 +1,15 @@
 {
-  "name": "updoc",
+  "name": "up-doc",
   "version": "1.0.0",
-  "description": "Simple markdown documentation server",
+  "description": "Roost documentation server with client-side rendering",
   "type": "module",
   "main": "docserver.js",
   "bin": {
-    "updoc": "./docserver.js"
+    "up-doc": "docserver.js"
   },
   "scripts": {
-    "start": "node docserver.js"
+    "start": "node docserver.js",
+    "check-links": "node scripts/check-links.js"
   },
   "author": "",
   "license": "ISC",

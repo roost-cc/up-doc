@@ -1,13 +1,5 @@
 import { addScript, addCSSLink } from './util.js';
-const asciinema_script_attributes = {
-  src: 'https://cdn.jsdelivr.net/npm/asciinema-player@3.12.1/dist/bundle/asciinema-player.min.js',
-  integrity: 'sha256-VoS8wUKbD63rWOmKvq3G0RYrbWAeVrTCbF5vl1qWXBw=',
-  crossorigin: 'anonymous',
-  referrerpolicy: 'no-referrer',
-};
-const asciinema_css_attributes = {
-  href: 'https://cdn.jsdelivr.net/npm/asciinema-player@3.12.1/dist/bundle/asciinema-player.min.css',
-};
+import { asciinema_script, asciinema_css } from './cdn-scripts.js';
 
 export class AsciinemaRenderer {
   constructor() {
@@ -17,7 +9,7 @@ export class AsciinemaRenderer {
 
   async init(renderer) {
     this.renderer = renderer;
-    await Promise.all([addScript(asciinema_script_attributes), addCSSLink(asciinema_css_attributes)]);
+    await Promise.all([addScript(asciinema_script), addCSSLink(asciinema_css)]);
     this.initialized = true;
   }
 

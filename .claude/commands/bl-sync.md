@@ -1,1 +1,0 @@
-../../../tools/backlog/commands/bl-sync.md

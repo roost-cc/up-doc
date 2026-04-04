@@ -1,298 +1,289 @@
 #!/usr/bin/env node
 
 /**
- * Simple Markdown documentation server.
+ * up-doc — Roost documentation server.
+ *
+ * Serves markdown files via a client-side SPA renderer. The SPA lives in the
+ * server's own `web/` directory and is served at `/_/`. Content (markdown, HTML,
+ * images, etc.) is served from the configured `directory` root.
+ *
+ * Special URL prefixes:
+ *   /_/*       → serves from the server's web/ directory (the SPA shell)
+ *   /src:*     → serves raw content (used by the SPA to fetch markdown source)
+ *   *.md       → redirects to /_/index.html (SPA renders client-side)
+ *   /          → redirects to /_/index.html (SPA handles directory listing)
  */
 
-import * as http from 'http';
-import * as fs from 'fs';
-import { promises as fsPromises } from 'fs';
-import * as path from 'path';
-import * as url from 'url';
-import * as mime from 'mime-types';
-import * as child_process from 'child_process';
-import * as os from 'os';
+import http from "node:http";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import mime from "mime-types";
 
-// Get the directory where docserver.js is located
-const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-let doc_dir = process.cwd();
-// Get document directory from command line arguments
-const args = process.argv.slice(2);
-if (args.includes('--help') || args.includes('-h')) {
-  console.error('Usage: docserver.js [--help|-h] <directory>');
-  console.error('  --help|-h: Show this help message');
-  console.error('  <directory>: The directory to serve (default: current directory)');
-  process.exit(1);
+let fileConfig = {};
+try {
+  fileConfig = JSON.parse(fs.readFileSync(path.resolve("config.json"), "utf8"));
+} catch {
+  // No config file — use env/defaults only
 }
 
-/**
- * Selects a random unprivileged port between 1024 and 65535
- */
-function getRandomPort() {
-  const port = Math.floor(Math.random() * (65535 - 1024 + 1)) + 1024;
-  return port;
-}
+const PORT = parseInt(process.env.DOC_PORT, 10) || fileConfig.port || 8080;
+const DOC_DIR = path.resolve(
+  process.env.DOC_DIR || fileConfig.directory || ".",
+);
+const WEB_DIR = path.resolve(__dirname, "web");
+const AUTH_USER = process.env.DOC_USER || null;
+const AUTH_PASS = process.env.DOC_PASS || null;
 
 /**
- * Open the default browser with the given URL
- * @param {string} url - URL to open
- */
-function openBrowser(url) {
-  console.log('openBrowser()');
-  const osPlatform = os.platform();
-  let command;
-
-  switch (osPlatform) {
-    case 'darwin': // macOS
-      command = `open "${url}"`;
-      break;
-    case 'win32': // Windows
-      command = `start "" "${url}"`;
-      break;
-    default: // Linux and others
-      command = `xdg-open "${url}"`;
-      break;
-  }
-
-  child_process.exec(command, (error) => {
-    if (error) {
-      // Silently fail if browser can't be opened
-      console.warn(`Could not open browser: ${error.message}`);
-    }
-  });
-}
-
-/**
- * Get MIME type based on file extension
- * @param {string} filePath - Path to the file
- * @returns {string} MIME type
+ * @param {string} filePath
+ * @returns {string}
  */
 function getMimeType(filePath) {
-  return mime.lookup(filePath) || 'application/octet-stream';
+  return mime.lookup(filePath) || "application/octet-stream";
 }
 
 /**
- * Send a 404 Not Found response
- * @param {http.ServerResponse} res - Response object
+ * @param {http.ServerResponse} res
  */
 function sendNotFound(res) {
-  const message = '404 - File not found';
-  const contentLength = Buffer.byteLength(message);
-  // Store Content-Length for logging
-  res._contentLength = contentLength;
-  res.writeHead(404, { 
-    'Content-Type': 'text/plain',
-    'Content-Length': contentLength
-  });
-  res.end(message);
+  res.writeHead(404, { "Content-Type": "text/plain" });
+  res.end("404 - File not found");
 }
 
 /**
- * Send a 500 Server Error response
- * @param {http.ServerResponse} res - Response object
- * @param {Error} error - Error object
- * @param {string} requestPath - Request path that caused the error
+ * @param {http.ServerResponse} res
+ * @param {Error} error
+ * @param {string} requestPath
  */
 function sendError(res, error, requestPath) {
   console.error(`Error: ${error.message} for request path: ${requestPath}`);
-  const message = '500 - Server error';
-  const contentLength = Buffer.byteLength(message);
-  // Store Content-Length for logging
-  res._contentLength = contentLength;
-  res.writeHead(500, { 
-    'Content-Type': 'text/plain',
-    'Content-Length': contentLength
-  });
-  res.end(message);
+  res.writeHead(500, { "Content-Type": "text/plain" });
+  res.end("500 - Server error");
 }
 
-async function getIndexFile(dirPath, ...candidates) {
-  // list the files in the directory
-  const files = await fsPromises.readdir(dirPath);
+/**
+ * @param {http.ServerResponse} res
+ */
+function sendUnauthorized(res) {
+  res.writeHead(401, {
+    "Content-Type": "text/plain",
+    "WWW-Authenticate": 'Basic realm="Roost Docs"',
+  });
+  res.end("401 - Unauthorized");
+}
+
+/**
+ * Check HTTP Basic Auth against configured credentials.
+ * Returns true if auth is disabled or credentials match.
+ * @param {http.IncomingMessage} req
+ * @returns {boolean}
+ */
+function checkAuth(req) {
+  if (!AUTH_USER || !AUTH_PASS) return true;
+  const header = req.headers.authorization;
+  if (!header?.startsWith("Basic ")) return false;
+  const decoded = Buffer.from(header.slice(6), "base64").toString();
+  const [user, pass] = decoded.split(":");
+  return user === AUTH_USER && pass === AUTH_PASS;
+}
+
+function getIndexFile(dirPath, ...candidates) {
+  const files = fs.readdirSync(dirPath);
+  let indexFile = null;
   for (const candidate of candidates) {
-    const indexFile = files.filter((file) => file.match(candidate)).shift();
-    if (indexFile) {
-      return indexFile;
-    }
+    indexFile = files.filter((file) => file.match(candidate)).pop();
+    if (indexFile) break;
   }
-  return null;
-}
-/**
- * Serve a file with appropriate headers
- * @param {http.ServerResponse} res - Response object
- * @param {string} filePath - The local file path to serve
- */
-async function serveFile(res, filePath, stats) {
-  // Read and serve the file
-  const [content, fileStats] = await Promise.all([
-    fsPromises.readFile(filePath),
-    stats ? Promise.resolve(stats) : fsPromises.stat(filePath)
-  ]);
-  const mimeType = getMimeType(filePath);
-
-  // Store Content-Length for logging (since getHeader() may not work after end())
-  res._contentLength = content.length;
-
-  res.writeHead(200, {
-    'Content-Type': mimeType,
-    'Content-Length': content.length,
-    'Last-Modified': fileStats.mtime.toUTCString(),
-  });
-  res.end(content);
+  return indexFile;
 }
 
 /**
- * Logs the request response in common log format 
- * host ident authuser timestamp request-line status bytes
- * @param {http.ServerResponse} res - Response object
- * @param {http.IncomingMessage} req - Request object
+ * Serve a static file from a given root directory.
+ * @param {http.ServerResponse} res
+ * @param {string} rootDir
+ * @param {string} relativePath
  */
-function logResponse(res, req) {
-  // Use stored Content-Length if available, otherwise try getHeader, otherwise use '-'
-  const contentLength = res._contentLength ?? (res.getHeader('content-length') || res.getHeader('Content-Length')) ?? '-';
-  console.log(`${req.headers.host} - - [${new Date().toISOString()}] "${req.method} ${req.url} HTTP/1.1" ${res.statusCode} ${res.statusMessage} ${contentLength}`);
-}
+function serveStatic(res, rootDir, relativePath) {
+  const filePath = path.normalize(path.join(rootDir, relativePath));
 
-/**
- * Request handler
- * @param {http.IncomingMessage} req - Request object
- * @param {http.ServerResponse} res - Response object
- */
-async function handleRequest(req, res) {
+  // Prevent path traversal
+  if (!filePath.startsWith(rootDir)) return sendNotFound(res);
+  if (!fs.existsSync(filePath)) return sendNotFound(res);
+
+  const stats = fs.statSync(filePath);
+  if (stats.isDirectory()) return sendNotFound(res);
+
   try {
-    // Parse URL
-    const parsedUrl = url.parse(req.url, true);
-    // decode and trim the leading '/'
-    const requestPath = decodeURIComponent(parsedUrl.pathname).replace(/^\//, '');
-    
-    // Handle .md files - serve index.html unless the source is requested
-    const send_source = requestPath.startsWith('src:');
-    let is_markdown = requestPath.endsWith('.md');
-    const is_server_file = requestPath.startsWith('_/');
-    let filePath;
-    let stats;
-    let not_found = false;
-    let err = null;
-
-    // add in index file if necessary
-    if (!is_server_file && !is_markdown) {
-      filePath = path.join(doc_dir, requestPath);
-      try {
-        stats = await fsPromises.stat(filePath);
-        if (stats.isDirectory()) {
-          const indexFile = await getIndexFile(filePath, 'INDEX.md', 'index.html', /^index\.md+$/i, /^index\.html+$/i);
-          if (indexFile) {
-            is_markdown = indexFile.endsWith('.md');
-            filePath = path.join(filePath, indexFile); 
-          } else {
-            not_found = true;
-          }
-        }
-      } catch (error) {
-        if (error.code === 'ENOENT') {
-          not_found = true;
-        } else {
-          err = error;
-        }
-      }
-    }
-   
-    if (is_markdown && !send_source) { // serve the server index.html which converts the markdown to html on the fly
-      filePath = path.join(__dirname, "web", "index.html");
-    } else if (is_server_file) { // serve the server file
-      filePath = path.join(__dirname, "web", requestPath.slice(2));
-    } else if (send_source) {
-      filePath = path.join(doc_dir, requestPath.slice(4));
-    } else if (not_found) { // serve the document file
-      const error = new Error(`No such file or directory, ${filePath}`);
-      error.code = 'ENOENT';
-      throw error;
-    } else if (err) {
-      throw err;
-    }
-    await serveFile(res, filePath, stats); // serve the file
+    const content = fs.readFileSync(filePath);
+    const mimeType = getMimeType(filePath);
+    res.writeHead(200, {
+      "Content-Type": mimeType,
+      "Content-Length": content.length,
+      "Last-Modified": stats.mtime.toUTCString(),
+    });
+    res.end(content);
   } catch (error) {
-    if (error.code === 'ENOENT') {
-      sendNotFound(res);
-    } else {
-      console.error(error);
-      sendError(res, error, req.url);
-    }
-  } finally {
-    logResponse(res, req);
-  }
-}
-
-// Function to try listening on a port
-function tryListen(server) {
-  console.log('tryListen()');
-  const port = getRandomPort();
-  
-  // Remove any existing error listeners to avoid duplicates
-  server.removeAllListeners('error');
-  
-  // Handle server errors - retry if port is in use
-  server.once('error', (error) => {
-    if (error.code === 'EADDRINUSE') {
-      console.warn(`Port ${port} is already in use, trying another port...`);
-      tryListen(server); // Retry with a new port
-    } else {
-      console.error(`Error starting server: ${error.message}`);
-      process.exit(1);
-    }
-  });
-
-  // Try to listen on the port
-  server.listen(port, () => {
-    // Remove error handler since we successfully started listening
-    server.removeAllListeners('error');
-    const serverUrl = `http://localhost:${port}/`;
-    console.log(`Serving at ${serverUrl}`);
-    console.log(`Serving files from: ${doc_dir}`);
-    console.log('Press Ctrl+C to stop the server');
-    openBrowser(serverUrl);
-  });
-}
-
-// Handle graceful shutdown
-let shutdownAttempts = 0;
-function shutdown(server) {
-  console.log(`\nShutting down server... (${shutdownAttempts})`);
-  server.close(() => {
-    console.log('Server stopped.');
-    process.exit(0);
-  });
-  shutdownAttempts++;
-  if (shutdownAttempts < 3) {
-    setTimeout(() => shutdown(server), 1000);
-  } else {
-    process.exit(1);
+    sendError(res, error, filePath);
   }
 }
 
 /**
- * Main function to start the server
+ * Serve a content file from DOC_DIR with directory/index resolution.
+ * @param {http.ServerResponse} res
+ * @param {string} requestPath
  */
+function serveContent(res, requestPath) {
+  const filePath = path.normalize(path.join(DOC_DIR, requestPath));
+  console.log(`  → ${filePath}`);
+
+  if (filePath !== DOC_DIR && !filePath.startsWith(DOC_DIR + path.sep))
+    return sendNotFound(res);
+  if (!fs.existsSync(filePath)) return sendNotFound(res);
+
+  const stats = fs.statSync(filePath);
+  if (stats.isDirectory()) {
+    const indexFile = getIndexFile(
+      filePath,
+      "index.md",
+      "INDEX.md",
+      "index.html",
+      /^index\.md$/i,
+      /^index\.html$/i,
+    );
+    if (indexFile) return serveContent(res, requestPath + "/" + indexFile);
+    return sendNotFound(res);
+  }
+
+  try {
+    const content = fs.readFileSync(filePath);
+    const mimeType = getMimeType(filePath);
+    res.writeHead(200, {
+      "Content-Type": mimeType,
+      "Content-Length": content.length,
+      "Last-Modified": stats.mtime.toUTCString(),
+    });
+    res.end(content);
+  } catch (error) {
+    sendError(res, error, filePath);
+  }
+}
+
+/**
+ * @param {http.IncomingMessage} req
+ * @param {http.ServerResponse} res
+ */
+function handleRequest(req, res) {
+  try {
+    if (!checkAuth(req)) return sendUnauthorized(res);
+
+    const { pathname } = new URL(req.url, "http://localhost");
+    const requestPath = decodeURIComponent(pathname);
+    console.log(`${req.method} ${requestPath}`);
+
+    // /_/* → serve from the server's web/ directory (SPA assets)
+    if (requestPath.startsWith("/_/")) {
+      return serveStatic(res, WEB_DIR, requestPath.slice(3));
+    }
+
+    // /src:* → serve raw content from DOC_DIR
+    if (requestPath.startsWith("/src:")) {
+      return serveContent(res, requestPath.slice(5));
+    }
+
+    // /ls:* → list directory contents as JSON
+    if (requestPath.startsWith("/ls:")) {
+      const dirPath = path.normalize(path.join(DOC_DIR, requestPath.slice(4)));
+      if (dirPath !== DOC_DIR && !dirPath.startsWith(DOC_DIR + path.sep))
+        return sendNotFound(res);
+      if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
+        return sendNotFound(res);
+      }
+      const entries = fs
+        .readdirSync(dirPath)
+        .filter((name) => !name.startsWith("."))
+        .map((name) => {
+          const stat = fs.statSync(path.join(dirPath, name));
+          return {
+            name,
+            type: stat.isDirectory() ? "dir" : "file",
+            size: stat.size,
+          };
+        })
+        .sort((a, b) => {
+          if (a.type !== b.type) return a.type === "dir" ? -1 : 1;
+          return a.name.localeCompare(b.name);
+        });
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(entries));
+      return;
+    }
+
+    // *.md → serve SPA shell (renders client-side)
+    if (requestPath.endsWith(".md")) {
+      return serveStatic(res, WEB_DIR, "index.html");
+    }
+
+    // *.json → serve SPA shell (renders client-side)
+    if (requestPath.endsWith(".json")) {
+      return serveStatic(res, WEB_DIR, "index.html");
+    }
+
+    // Directory request → serve SPA shell
+    const fullPath = path.normalize(path.join(DOC_DIR, requestPath));
+    if (fs.existsSync(fullPath) && fs.statSync(fullPath).isDirectory()) {
+      return serveStatic(res, WEB_DIR, "index.html");
+    }
+
+    // Everything else → serve from DOC_DIR
+    return serveContent(res, requestPath);
+  } catch (error) {
+    sendError(res, error, req.url);
+  }
+}
+
 function main() {
-  console.log('main()');
-  // get the absolute path to the document directory
-  doc_dir = path.resolve((args[0] || process.cwd()).trim().replace(/^~/, os.homedir()));
-  // Verify document directory exists
-  if (!fs.existsSync(doc_dir)) {
-    console.error(`Error: Directory not found at '${doc_dir}'`);
+  if (!fs.existsSync(DOC_DIR)) {
+    console.error(`Error: Content directory not found at '${DOC_DIR}'`);
+    process.exit(1);
+  }
+  if (!fs.existsSync(WEB_DIR)) {
+    console.error(`Error: Web directory not found at '${WEB_DIR}'`);
     process.exit(1);
   }
 
-  // Create HTTP server
   const server = http.createServer(handleRequest);
 
-  process.on('SIGINT', () => shutdown(server));
-  process.on('SIGTERM', () => shutdown(server));
+  function shutdown() {
+    console.log("\nShutting down server...");
+    server.close(() => {
+      console.log("Server stopped.");
+      process.exit(0);
+    });
+    // Force exit if close takes too long (e.g. keep-alive connections)
+    setTimeout(() => process.exit(0), 3000);
+  }
 
-  // Start trying to listen
-  tryListen(server);
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
+
+  server.listen(PORT, () => {
+    console.log(`Roost docs server at http://localhost:${PORT}/`);
+    console.log(`  Content: ${DOC_DIR}`);
+    console.log(`  SPA:     ${WEB_DIR}`);
+    console.log(`  Auth:    ${AUTH_USER ? "enabled" : "disabled"}`);
+  });
+
+  server.on("error", (error) => {
+    if (error.code === "EADDRINUSE") {
+      console.error(`Error: Port ${PORT} is already in use.`);
+    } else {
+      console.error(`Error starting server: ${error.message}`);
+    }
+    process.exit(1);
+  });
 }
 
-// Run the server
 main();

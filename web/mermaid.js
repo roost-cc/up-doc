@@ -1,22 +1,8 @@
-/* global mermaid, pako */
+/* global mermaid, pako, hljs */
 import * as modal from './modal.js';
-import { lineIndexOf } from './util.js';
-import { addScript } from './util.js';
+import { lineIndexOf, addScript } from './util.js';
 import { MarkdownRenderer } from './index.js';
-
-const mermaid_attributes = {
-  src: 'https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.12.0/mermaid.min.js',
-  integrity: 'sha512-5TKaYvhenABhlGIKSxAWLFJBZCSQw7HTV7aL1dJcBokM/+3PNtfgJFlv8E6Us/B1VMlQ4u8sPzjudL9TEQ06ww==',
-  crossorigin: 'anonymous',
-  referrerpolicy: 'no-referrer',
-};
-
-const pako_attributes = {
-  src: 'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js',
-  integrity: 'sha512-g2TeAWw5GPnX7z0Kn8nFbYfeHcvAu/tx6d6mrLe/90mkCxO+RcptyYpksUz35EO337F83bZwcmUyHiHamspkfg==',
-  crossorigin: 'anonymous',
-  referrerpolicy: 'no-referrer',
-};
+import { mermaid as mermaid_cdn, pako, highlightjs } from './cdn-scripts.js';
 
 export class MermaidRenderer {
   constructor() {
@@ -30,7 +16,7 @@ export class MermaidRenderer {
    */
   async init(renderer) {
     this.renderer = renderer;
-    await Promise.all([addScript(mermaid_attributes), addScript(pako_attributes)]);
+    await Promise.all([addScript(mermaid_cdn), addScript(pako), addScript(highlightjs)]);
 
     mermaid.initialize({ startOnLoad: false, suppressErrorRendering: true });
 
@@ -45,8 +31,12 @@ export class MermaidRenderer {
         return `<pre class="mermaid" data-source="${encodeURIComponent(code)}">${code}</pre>`;
       }
 
-      // Fallback for other code blocks
-      return `<pre><code>${renderer.md.utils.escapeHtml(code)}</code></pre>`;
+      // Syntax-highlighted code blocks
+      const highlighted =
+        lang && hljs.getLanguage(lang)
+          ? hljs.highlight(code, { language: lang }).value
+          : hljs.highlightAuto(code).value;
+      return `<pre><code class="hljs">${highlighted}</code></pre>`;
     };
 
     await this.loadDocsMapping(renderer.path);

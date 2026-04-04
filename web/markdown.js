@@ -1,11 +1,5 @@
 import { addScript } from './util.js';
-
-const markdownit_attributes = {
-  src: 'https://cdn.jsdelivr.net/npm/markdown-it@13/dist/markdown-it.min.js',
-  integrity: 'sha512-ohlWmsCxOu0bph1om5eDL0jm/83eH09fvqLDhiEdiqfDeJbEvz4FSbeY0gLJSVJwQAp0laRhTXbUQG+ZUuifUQ==',
-  crossorigin: 'anonymous',
-  referrerpolicy: 'no-referrer',
-};
+import { markdownit } from './cdn-scripts.js';
 
 const resolver = {};
 const md_promise = new Promise((resolve, reject) => {
@@ -18,10 +12,10 @@ export async function getMarkdownEngine() {
 }
 
 export async function init(base = window.location.toString()) {
-  await addScript(markdownit_attributes);
+  await addScript(markdownit);
   const md = window.markdownit({
     html: true,
-    linkify: true,
+    linkify: false,
     typographer: true,
   });
   // Add anchor generation to headers
