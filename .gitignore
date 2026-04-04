@@ -1,1 +1,9 @@
 node_modules/
+# Backlog workon lock files
+.workon.lock
+# Backlog activity logs
+.bl/
+# Claude Code session data
+.claude
+.claude/projects/
+.claude/*.jsonl
