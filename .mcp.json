@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "roost-containers": {
+      "command": "node",
+      "args": [
+        "/home/robert/work/roost/containers/mcp/containers.js"
+      ]
+    },
+    "roost-browser": {
+      "command": "node",
+      "args": [
+        "/home/robert/work/roost/tools/mcp/browser.js"
+      ]
+    },
+    "roost-tmux": {
+      "command": "node",
+      "args": [
+        "/home/robert/work/roost/tools/mcp/tmux.js"
+      ]
+    }
+  }
+}

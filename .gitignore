@@ -113,4 +113,10 @@ Desktop.ini
 build/
 dist/
 out/
-
+# Backlog workon lock files
+.workon.lock
+# Backlog activity logs
+.bl/
+# Claude Code session data
+.claude/projects/
+.claude/*.jsonl
