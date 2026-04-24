@@ -123,6 +123,7 @@ function serveStatic(res, rootDir, relativePath) {
       "Content-Type": mimeType,
       "Content-Length": content.length,
       "Last-Modified": stats.mtime.toUTCString(),
+      "Cache-Control": "no-cache",
     });
     res.end(content);
   } catch (error) {
