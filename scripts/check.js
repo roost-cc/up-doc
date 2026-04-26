@@ -5,7 +5,7 @@
  * runs the crawler against it, then tears the server down.
  *
  * Usage:
- *   node scripts/check.js [--doc-dir <path>] [--skip <regex>]... [--skip-file <path>]
+ *   node scripts/check.js [--doc-dir <path>] [--skip-file <path>] [--skip <regex>]...
  *
  * Exits with the crawler's exit code (0 = OK, 1 = broken links / IO error).
  */
@@ -76,7 +76,7 @@ server.on("exit", (code, signal) => {
     console.error(
       `doc-server exited unexpectedly (code=${code} signal=${signal})`,
     );
-    process.exit(1);
+    shutdown(1);
   }
 });
 

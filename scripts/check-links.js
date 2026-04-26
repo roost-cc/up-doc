@@ -7,7 +7,7 @@
  * any *.md/*.json/directory request).
  *
  * Usage:
- *   node check-links.js [base-url] [--skip <regex>]... [--skip-file <path>]
+ *   node check-links.js [base-url] [--skip-file <path>] [--skip <regex>]...
  *
  * Default base URL: http://localhost:8082
  *
@@ -32,10 +32,20 @@ const BASE = positionals[0] || "http://localhost:8082";
 const skips = [];
 for (const pat of values.skip ?? []) skips.push(new RegExp(pat));
 if (values["skip-file"]) {
-  const text = fs.readFileSync(values["skip-file"], "utf8");
-  for (const raw of text.split("\n")) {
+  const skipFile = values["skip-file"];
+  const text = fs.readFileSync(skipFile, "utf8");
+  const lines = text.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i];
     if (/^\s*(#.*)?$/.test(raw)) continue;
-    skips.push(new RegExp(raw));
+    const pattern = raw.trim();
+    try {
+      skips.push(new RegExp(pattern));
+    } catch (err) {
+      throw new Error(
+        `Invalid regex in ${skipFile}:${i + 1}: ${pattern}\n  ${err.message}`,
+      );
+    }
   }
 }
 
@@ -47,7 +57,10 @@ async function findEntry() {
   for (const candidate of ["/index.md", "/INDEX.md", "/README.md"]) {
     try {
       const res = await fetch(BASE + "/src:" + candidate, { method: "HEAD" });
-      if (res.status === 200) return candidate;
+      if (res.status === 200) {
+        checked.add(candidate);
+        return candidate;
+      }
     } catch {
       // fall through
     }
