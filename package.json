@@ -9,6 +9,7 @@
   },
   "scripts": {
     "start": "node docserver.js",
+    "check": "node scripts/check.js",
     "check-links": "node scripts/check-links.js"
   },
   "author": "",

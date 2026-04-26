@@ -65,13 +65,49 @@ docker run -p 8080:8080 -v /path/to/docs:/docs -e DOC_DIR=/docs up-doc
 
 ## Link Checker
 
-Crawl a running doc-server instance and verify all markdown links resolve:
+### One-shot
 
 ```bash
-node scripts/check-links.js [base-url]
+npm run check -- [--doc-dir <path>] [--skip-file <path>] [--skip <regex>]
 ```
 
-Default base URL is `http://localhost:8082`.
+Starts the doc-server on a free ephemeral port, runs the crawler against it,
+and tears the server down. `DOC_DIR` defaults to the current working
+directory (matching `node docserver.js`); pass `--doc-dir` or set the
+`DOC_DIR` env var to override.
+
+### Crawler-only
+
+```bash
+npm run check-links -- [base-url] [--skip-file <path>] [--skip <regex>]
+```
+
+Use against an already-running server — for example the docker docs
+container at `http://localhost:8082` (the default base URL). This is the
+flow used by CI / Docker setups in other Roost repos.
+
+### Skip-file format
+
+One ECMAScript regex per line, matched (case-sensitive) against the resolved
+URL path of each candidate link. Matches are treated as OK: not fetched, not
+crawled. Lines beginning with `#` and blank lines are ignored.
+
+```text
+# Generated JSDoc — only present after `pnpm docs`
+^/api/jsdoc/
+
+# OpenAPI spec
+^/api/openapi\.json$
+
+# Coverage reports
+^/reports/coverage/
+```
+
+### Exit codes
+
+- `0` — all links resolve
+- `1` — broken links found, the server failed to start, or an IO error
+  occurred
 
 ## SPA Architecture
 
