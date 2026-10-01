@@ -4,6 +4,9 @@
   "description": "Roost documentation server with client-side rendering",
   "type": "module",
   "main": "docserver.js",
+  "engines": {
+    "node": ">=26"
+  },
   "bin": {
     "up-doc": "docserver.js"
   },
