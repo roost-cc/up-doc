@@ -117,6 +117,17 @@ describe("extractLinks: fenced code blocks", () => {
     assert.deepEqual(extractLinks(text), ["listed.md"]);
   });
 
+  it("handles CRLF line endings on fence lines", () => {
+    const text = [
+      "[before](before.md)",
+      "```js",
+      PLACEHOLDER,
+      "```",
+      "[after](after.md)",
+    ].join("\r\n");
+    assert.deepEqual(extractLinks(text), ["before.md", "after.md"]);
+  });
+
   it("preserves the line count when blanking a fence", () => {
     const text = "a\n```\nb\n```\nc";
     assert.equal(stripFencedCode(text), "a\n\n\n\nc");
