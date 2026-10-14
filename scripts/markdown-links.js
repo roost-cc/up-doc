@@ -110,12 +110,13 @@ export function stripCode(text) {
   return stripCodeSpans(stripFencedCode(text));
 }
 
-/** The link regex the checker has always used; unchanged outside code. */
+/** The link regex the checker has always used, run on the stripped text. */
 const LINK_RE = /\[[^\]]*\]\(([^)#\s]+?)(?:#[^)]*)?\)/g;
 
 /**
- * Return the href of every markdown link outside code, in document order.
- * Fragments are dropped; the href is otherwise returned verbatim.
+ * Return the href of every markdown link outside fenced code blocks and code
+ * spans, in document order (links in indented code are included). Fragments
+ * are dropped; the href is otherwise returned verbatim.
  *
  * @param {string} text markdown source
  * @returns {string[]}
