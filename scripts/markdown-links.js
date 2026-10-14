@@ -52,9 +52,10 @@ export function stripFencedCode(text) {
     if (!m) continue;
     const [, indent, fence, info] = m;
     if (isIndentedCode(indent)) {
-      // Indented code, not a fence: blank the line so its backticks can
-      // neither open a fence nor open a span across the prose that follows.
-      lines[i] = "";
+      // Indented code, not a fence: neutralise only the run so it can neither
+      // open a fence nor open a span across the prose that follows. The rest
+      // of the line stays, so a link on it is still checked.
+      lines[i] = line.replace(fence, " ");
       continue;
     }
     const ch = fence[0];

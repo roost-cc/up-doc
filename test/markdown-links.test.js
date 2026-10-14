@@ -171,6 +171,42 @@ describe("extractLinks: lines that look like fences but are not", () => {
     }
   });
 
+  // A rejected fence-like line is indented code, which is still checked: only
+  // its run is neutralised, so a link elsewhere on the line is reported and
+  // the prose after it is untouched. Every indent class, both characters,
+  // empty and nonempty info strings, a lone line and a pair of them.
+  const same = "[same](same.md)";
+  const after = "[after](after.md)";
+  const lineCases = [
+    ["four-space backticks", `    \`\`\` ${same}`],
+    ["four-space tildes", `    ~~~ ${same}`],
+    ["tab backticks", `\t\`\`\` ${same}`],
+    ["tab tildes", `\t~~~ ${same}`],
+    ["spaces then tab, backticks", `  \t\`\`\` ${same}`],
+    ["spaces then tab, tildes", `  \t~~~ ${same}`],
+    ["blockquote plus four spaces, backticks", `>     \`\`\` ${same}`],
+    ["blockquote plus four spaces, tildes", `>     ~~~ ${same}`],
+    ["four-space longer backtick run", `    \`\`\`\` ${same}`],
+    ["four-space backticks with info string", `    \`\`\`js ${same}`],
+    ["four-space tildes with info string", `    ~~~js ${same}`],
+  ];
+
+  it("extractLinks includes links on indented fence-shaped lines", () => {
+    for (const [name, line] of lineCases) {
+      assert.deepEqual(
+        extractLinks(`${line}\n${after}`),
+        ["same.md", "after.md"],
+        name,
+      );
+      assert.deepEqual(
+        extractLinks(`${line}\n${after}\n${line}`),
+        ["same.md", "after.md", "same.md"],
+        `${name}, paired`,
+      );
+    }
+    assert.equal(stripFencedCode("    ``` [a](x.md)"), "      [a](x.md)");
+  });
+
   it("still treats a tab after a blockquote marker as a fence", () => {
     assert.deepEqual(extractLinks(`>\t\`\`\`\n> ${link}\n>\t\`\`\``), []);
   });
