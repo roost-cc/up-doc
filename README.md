@@ -88,10 +88,12 @@ flow used by CI / Docker setups in other Roost repos.
 
 ### What is checked
 
-Every markdown link and image target outside code that points into the site
-is checked; `http` links, `mailto:` and `data:` URLs are not fetched. Link
-syntax inside fenced code blocks and inline code spans is not checked either,
-so examples can show it without being reported as broken.
+Every markdown link and image target that points into the site is checked;
+`http` links, `mailto:` and `data:` URLs are not fetched. Link syntax inside
+fenced code blocks (backtick or tilde fences) and inline code spans is not
+checked either, so examples can show it without being reported as broken.
+Indented (four-space) code blocks are not recognised: links inside them are
+still checked.
 
 ### Skip-file format
 
