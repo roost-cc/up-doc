@@ -18,6 +18,8 @@
 import fs from "node:fs";
 import { parseArgs } from "node:util";
 
+import { extractLinks } from "./markdown-links.js";
+
 const { values, positionals } = parseArgs({
   options: {
     skip: { type: "string", multiple: true },
@@ -113,10 +115,7 @@ async function crawl(pagePath) {
     return;
   }
 
-  const re = /\[[^\]]*\]\(([^)#\s]+?)(?:#[^)]*)?\)/g;
-  let m;
-  while ((m = re.exec(text)) !== null) {
-    const href = m[1];
+  for (const href of extractLinks(text)) {
     if (
       !href ||
       href.startsWith("http") ||
