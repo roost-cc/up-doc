@@ -86,6 +86,12 @@ Use against an already-running server — for example the docker docs
 container at `http://localhost:8082` (the default base URL). This is the
 flow used by CI / Docker setups in other Roost repos.
 
+### What is checked
+
+Every markdown link and image target outside code is checked. Link syntax
+inside fenced code blocks and inline code spans is not, so examples can show
+it without being reported as broken.
+
 ### Skip-file format
 
 One ECMAScript regex per line, matched (case-sensitive) against the resolved
