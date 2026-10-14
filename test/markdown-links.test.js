@@ -141,6 +141,48 @@ describe("extractLinks: fenced code blocks", () => {
   });
 });
 
+describe("extractLinks: lines that look like fences but are not", () => {
+  const link = "[ordinary](ordinary.md)";
+
+  // A line indented four or more columns (a tab counts as four) is indented
+  // code, not a fence: it must neither open a fence nor hand its backticks
+  // to the span pass. Paired and unpaired delimiters of both characters, with
+  // every indent class and inside a blockquote. Expectations were checked
+  // against markdown-it, the SPA's renderer.
+  const cases = [
+    ["four-space backticks, paired", `    \`\`\`\n${link}\n    \`\`\``],
+    ["four-space backticks, unpaired", `    \`\`\`\n${link}`],
+    ["four-space tildes, paired", `    ~~~\n${link}\n    ~~~`],
+    ["four-space tildes, unpaired", `    ~~~\n${link}`],
+    ["tab backticks, paired", `\t\`\`\`\n${link}\n\t\`\`\``],
+    ["tab backticks, unpaired", `\t\`\`\`\n${link}`],
+    ["tab tildes, paired", `\t~~~\n${link}\n\t~~~`],
+    ["tab tildes, unpaired", `\t~~~\n${link}`],
+    ["spaces then tab, backticks", `  \t\`\`\`\n${link}\n  \t\`\`\``],
+    ["four-space longer backtick run", `    \`\`\`\`\n${link}\n    \`\`\`\``],
+    ["four-space backticks with info", `    \`\`\`js\n${link}\n    \`\`\``],
+    ["indented in a blockquote", `>     \`\`\`\n> ${link}\n>     \`\`\``],
+    ["rejected backtick opener, unpaired", `\`\`\` a\`b\n${link}\n\`\`\``],
+  ];
+
+  it("extractLinks checks prose between non-fence delimiter lines", () => {
+    for (const [name, text] of cases) {
+      assert.deepEqual(extractLinks(text), ["ordinary.md"], name);
+    }
+  });
+
+  it("still treats a tab after a blockquote marker as a fence", () => {
+    assert.deepEqual(extractLinks(`>\t\`\`\`\n> ${link}\n>\t\`\`\``), []);
+  });
+
+  it("lets a rejected backtick opener's run open a span, as the renderer does", () => {
+    // Neither line is a fence (the info string holds a backtick), so the two
+    // runs of three form one code span across the link; markdown-it renders
+    // no link here.
+    assert.deepEqual(extractLinks(`\`\`\` a\`b\n${link}\n\`\`\` a\`b`), []);
+  });
+});
+
 describe("extractLinks: inline code spans", () => {
   it("ignores a single-backtick span but reports a broken link beside it", () => {
     const text = `The report embeds \`![t](charts/<name>.svg)\` and [real](missing.md).`;

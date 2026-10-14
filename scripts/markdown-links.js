@@ -12,10 +12,18 @@
  * Prefix allowed before a fence line: up to three spaces of indent, optionally
  * preceded by blockquote markers (`> `) which may themselves be indented.
  */
-const FENCE_PREFIX = String.raw`^(?:[ \t]{0,3}>[ \t]?)*[ \t]{0,3}`;
+const FENCE_PREFIX = String.raw`^(?: {0,3}>[ \t]?)* {0,3}`;
 
-/** Matches an opening fence line and captures the fence run and info string. */
-const FENCE_OPEN = new RegExp(FENCE_PREFIX + "(`{3,}|~{3,})(.*?)\\r?$");
+/**
+ * Matches a line shaped like an opening fence, with any indent, and captures
+ * the indent, the fence run and the info string. The indent decides whether
+ * the line is a fence (up to three spaces) or indented code (four or more
+ * columns; a tab counts as four).
+ */
+const FENCE_LIKE = /^(?: {0,3}>[ \t]?)*([ \t]*)(`{3,}|~{3,})(.*?)\r?$/;
+
+/** @param {string} indent the whitespace before a fence-shaped run */
+const isIndentedCode = (indent) => indent.length >= 4 || indent.includes("\t");
 
 /**
  * Replace every fenced code block (``` or ~~~) with blank lines.
@@ -40,9 +48,15 @@ export function stripFencedCode(text) {
       if (closeRe.test(line)) closeRe = null;
       continue;
     }
-    const m = FENCE_OPEN.exec(line);
+    const m = FENCE_LIKE.exec(line);
     if (!m) continue;
-    const [, fence, info] = m;
+    const [, indent, fence, info] = m;
+    if (isIndentedCode(indent)) {
+      // Indented code, not a fence: blank the line so its backticks can
+      // neither open a fence nor open a span across the prose that follows.
+      lines[i] = "";
+      continue;
+    }
     const ch = fence[0];
     if (ch === "`" && info.includes("`")) continue;
     closeRe = new RegExp(FENCE_PREFIX + `${ch}{${fence.length},}[ \\t\\r]*$`);
