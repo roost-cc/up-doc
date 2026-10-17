@@ -43,8 +43,10 @@ export class MermaidRenderer {
       return `<pre><code class="hljs">${highlighted}</code></pre>`;
     };
 
-    // The mapping only links diagram participants, so a page without a diagram skips it
-    if (/^\s{0,3}(`{3,}|~{3,})\s*mermaid/m.test(renderer.markdown ?? "")) {
+    // The mapping only links diagram participants, so a page without a diagram skips it. Ask
+    // the parser, so a fence in a blockquote or list counts the same as the fence rule sees it
+    const tokens = renderer.md.parse(renderer.markdown ?? "", {});
+    if (tokens.some((t) => t.type === "fence" && t.info.trim() === "mermaid")) {
       await this.loadDocsMapping(renderer.path);
     }
     this.initialized = true;
