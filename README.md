@@ -87,7 +87,9 @@ page shows a sidebar built from it; when it is missing, or is not an object with
   `entries` are listed under it.
 - An entry is `{ title, path }`. An entry may carry its own `entries` (a hub), listed under
   it; deeper nesting is not rendered.
-- Paths are root-relative. `/guide/` and `/guide/index.md` are the same page.
+- Paths are root-relative file paths as written, not URL-encoded: `/guide/my page.md`, and
+  `/guide/a%20b.md` names a file with a literal `%20`. `/guide/` and `/guide/index.md` are the
+  same page.
 - Other fields (a `blurb`, an `id`) are ignored.
 
 The entry for the current page is marked `aria-current="page"` and its section is open. A
@@ -123,7 +125,8 @@ in the browser; up-doc never builds or changes the index.
   boosts, prefix and fuzzy matching are the file's to choose.
 - `index` is `MiniSearch#toJSON()`.
 
-A document's `id` is the root-relative path of its page (`/guide/start.md`); the result list
+A document's `id` is the root-relative file path of its page as written, not URL-encoded
+(`/guide/start.md`); the result list
 shows its stored `title` and, in small text, its stored `section` when it has one. Up to twenty
 results are listed; Enter opens the first, Escape clears the box.
 
