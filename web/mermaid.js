@@ -43,11 +43,15 @@ export class MermaidRenderer {
       return `<pre><code class="hljs">${highlighted}</code></pre>`;
     };
 
-    await this.loadDocsMapping(renderer.path);
+    // The mapping only links diagram participants, so a page without a diagram skips it
+    if (/^\s{0,3}(`{3,}|~{3,})\s*mermaid/m.test(renderer.markdown ?? "")) {
+      await this.loadDocsMapping(renderer.path);
+    }
     this.initialized = true;
   }
 
-  // Load and process the docs.json file (only when needed)
+  // Load and process the docs.json file (only when needed). It is content, so it comes from
+  // /src: (any other *.json path answers with the SPA shell)
   /**
    * @param {string} path
    */
@@ -57,7 +61,7 @@ export class MermaidRenderer {
         "api/docs.json",
         new URL(path, window.location.toString()),
       );
-      const response = await fetch(docsPath);
+      const response = await fetch(`/src:${docsPath.pathname}`);
       if (!response.ok) {
         return;
       }
