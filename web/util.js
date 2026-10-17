@@ -48,6 +48,18 @@ export function rootFiles() {
   return rootListing;
 }
 
+/**
+ * The URL for a root-relative file path, each segment percent-encoded, so a space, `#`, `?` or
+ * `%` in a file name stays part of the name. The browser's pathname for it decodes back to
+ * `path` exactly.
+ *
+ * @param {string} path
+ * @returns {string}
+ */
+export function pathHref(path) {
+  return path.split('/').map(encodeURIComponent).join('/');
+}
+
 export function addCSSLink(attributes) {
   if (!attributes.href) {
     throw new Error('href is required');

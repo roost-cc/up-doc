@@ -6,7 +6,7 @@
  * root-relative. Without a manifest there is no sidebar.
  */
 
-import { rootFiles } from "./util.js";
+import { pathHref, rootFiles } from "./util.js";
 
 /**
  * @typedef {{ title?: string, path?: string, entries?: Entry[] }} Entry
@@ -61,19 +61,31 @@ export function parse(value) {
 }
 
 /**
- * A path percent-decoded and with a trailing `index.md` dropped, so a directory and its index
- * are the same page and the browser's encoded pathname matches the manifest's path in either
- * form. A path that does not decode is compared as written.
+ * A manifest path with a trailing `index.md` dropped, so a directory and its index are the
+ * same page. Manifest paths are file paths as written, never decoded: `a%20b.md` names a file
+ * with a literal `%20`.
+ *
+ * @param {string} path
+ * @returns {string}
+ */
+export function normalise(path) {
+  return path.replace(/\/index\.md$/i, "/");
+}
+
+/**
+ * The browser's encoded pathname as the file path it names (decoded once, as the server does),
+ * normalised for comparison with manifest paths. A pathname that does not decode is compared
+ * as written.
  *
  * @param {string} pathname
  * @returns {string}
  */
-export function normalise(pathname) {
+export function current(pathname) {
   let decoded = pathname;
   try {
     decoded = decodeURIComponent(pathname);
   } catch {}
-  return decoded.replace(/\/index\.md$/i, "/");
+  return normalise(decoded);
 }
 
 /** @param {string} pathname */
@@ -106,7 +118,7 @@ function pathsOf(section) {
  * @returns {number}  The section's index, or -1.
  */
 export function openSection(manifest, pathname) {
-  const page = normalise(pathname);
+  const page = current(pathname);
   const exact = manifest.sections.findIndex((s) =>
     pathsOf(s).some((p) => normalise(p) === page),
   );
@@ -132,7 +144,7 @@ export function openSection(manifest, pathname) {
  */
 function link(item, page) {
   const a = document.createElement("a");
-  a.href = item.path ?? "#";
+  a.href = typeof item.path === "string" ? pathHref(item.path) : "#";
   a.textContent = item.title ?? item.path ?? "";
   if (typeof item.path === "string" && normalise(item.path) === page) {
     a.setAttribute("aria-current", "page");
@@ -167,7 +179,7 @@ function list(entries, page, nest) {
  * @returns {HTMLElement}
  */
 export function render(manifest, pathname) {
-  const page = normalise(pathname);
+  const page = current(pathname);
   const nav = document.createElement("nav");
   nav.className = "sidebar";
   nav.id = "sidebar";

@@ -1,7 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { normalise, openSection, parse } from "../../web/sidebar.js";
+import { current, normalise, openSection, parse } from "../../web/sidebar.js";
+import { pathHref } from "../../web/util.js";
 
 const manifest = {
   root: { title: "Docs" },
@@ -35,40 +36,70 @@ describe("normalise", () => {
   });
 });
 
+/**
+ * Each case is a manifest path (the file path as written) and the pathname the browser reports
+ * for it. The entry sits as a section, an entry and a nested entry; section 0 holds the parent
+ * directory, so only a match on the case's own path picks section 1.
+ *
+ * @param {[string, string, string][]} cases  `[name, manifest path, browser pathname]`
+ */
+function pathCases(cases) {
+  const at = {
+    section: (path) => ({ path }),
+    entry: (path) => ({ path: "/elsewhere.md", entries: [{ path }] }),
+    nested: (path) => ({
+      path: "/elsewhere.md",
+      entries: [{ path: "/elsewhere/hub.md", entries: [{ path }] }],
+    }),
+  };
+  for (const [name, raw, browser] of cases) {
+    for (const [position, place] of Object.entries(at)) {
+      it(`${name}, as ${position}`, () => {
+        const m = { sections: [{ path: "/guide/a.md" }, place(raw)] };
+        // The link's href lands on this pathname
+        const landed = new URL(pathHref(raw), "http://host").pathname;
+        assert.equal(current(landed), current(browser));
+        // Exact match
+        assert.equal(openSection(m, browser), 1);
+        // Longest directory prefix: an unlisted page beside the entry
+        const dir = browser.slice(0, browser.lastIndexOf("/") + 1);
+        assert.equal(openSection(m, `${dir}unlisted.md`), 1);
+        // aria-current compares the same forms
+        assert.equal(normalise(raw), current(browser));
+      });
+    }
+  }
+}
+
 describe("openSection matches encoded browser pathnames to manifest paths", () => {
-  /** Each manifest path, written raw and encoded, against the pathname the browser reports. */
-  const CASES = [
+  pathCases([
     ["ascii", "/guide/sub/page.md", "/guide/sub/page.md"],
     ["index.md", "/guide/sub/index.md", "/guide/sub/"],
     ["space", "/guide/my docs/my page.md", "/guide/my%20docs/my%20page.md"],
     ["reserved", "/guide/a#b?c/d#e.md", "/guide/a%23b%3Fc/d%23e.md"],
     ["unicode", "/guide/café/naïve.md", "/guide/caf%C3%A9/na%C3%AFve.md"],
-  ];
-  for (const [name, raw, browser] of CASES) {
-    for (const [form, path] of [
-      ["raw", raw],
-      ["encoded", browser],
-    ]) {
-      it(`${name}, manifest ${form}`, () => {
-        // Section 0 holds the parent directory, so only a match on the entry picks section 1
-        const m = {
-          sections: [
-            { path: "/guide/a.md" },
-            { path: "/elsewhere.md", entries: [{ path }] },
-          ],
-        };
-        // Exact entry match
-        assert.equal(openSection(m, browser), 1);
-        // Longest directory prefix: an unlisted page beside the entry
-        const dir = browser.slice(0, browser.lastIndexOf("/") + 1);
-        assert.equal(openSection(m, `${dir}unlisted.md`), 1);
-        // aria-current compares the same normalised forms
-        assert.equal(normalise(path), normalise(browser));
-      });
-    }
-  }
+  ]);
   it("compares a path that does not decode as written", () => {
-    assert.equal(normalise("/guide/100%.md"), "/guide/100%.md");
+    assert.equal(current("/guide/100%.md"), "/guide/100%.md");
+  });
+});
+
+describe("openSection matches literal percent-escape filenames in raw manifests to double-encoded browser pathnames", () => {
+  const LITERAL = [
+    ["%20", "/guide/sub/a%20b.md", "/guide/sub/a%2520b.md"],
+    ["%23", "/guide/sub/a%23b.md", "/guide/sub/a%2523b.md"],
+    ["%3F", "/guide/sub/a%3Fb.md", "/guide/sub/a%253Fb.md"],
+    ["%2F", "/guide/sub/a%2Fb.md", "/guide/sub/a%252Fb.md"],
+    ["%5C", "/guide/sub/a%5Cb.md", "/guide/sub/a%255Cb.md"],
+    ["UTF-8 bytes", "/guide/sub/caf%C3%A9.md", "/guide/sub/caf%25C3%25A9.md"],
+    ["directory", "/guide/d%20ir/page.md", "/guide/d%2520ir/page.md"],
+  ];
+  pathCases(LITERAL);
+  it("does not treat the decoded lookalike as the same page", () => {
+    for (const [, raw] of LITERAL) {
+      // The browser pathname `raw` names the file with the escape decoded: another page
+      assert.notEqual(current(raw), normalise(raw), raw);
+    }
   });
 });
 

@@ -8,7 +8,7 @@
  * out of this module. Ranking, fields, prefix and fuzzy settings are the file's, never ours.
  */
 
-import { addScript, rootFiles } from "./util.js";
+import { addScript, pathHref, rootFiles } from "./util.js";
 import { minisearch } from "./cdn-scripts.js";
 
 /** The MiniSearch major version a `search.json` must have: the one in the pinned CDN URL. */
@@ -104,7 +104,7 @@ async function load() {
 function item(result) {
   const li = document.createElement("li");
   const a = document.createElement("a");
-  a.href = result.id;
+  a.href = pathHref(String(result.id));
   a.textContent = result.title || result.id;
   li.appendChild(a);
   if (result.section) {
