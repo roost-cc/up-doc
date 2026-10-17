@@ -24,18 +24,40 @@ export async function load() {
     if (!(await rootFiles()).has("site.json")) return null;
     const response = await fetch("/src:/site.json");
     if (!response.ok) return null;
-    const manifest = await response.json();
-    if (
-      !manifest ||
-      typeof manifest !== "object" ||
-      !Array.isArray(manifest.sections)
-    ) {
-      return null;
-    }
-    return manifest;
+    return parse(await response.json());
   } catch {
     return null;
   }
+}
+
+/** @param {unknown} value */
+function isObject(value) {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+/**
+ * The manifest in `value`, or null when it is not an object with `sections[]`. A section or
+ * entry that is not an object is dropped, so a stray `null` costs one line, not the page.
+ *
+ * @param {unknown} value  The parsed `site.json`.
+ * @returns {Manifest|null}
+ */
+export function parse(value) {
+  if (!isObject(value) || !Array.isArray(value.sections)) return null;
+  /** @param {unknown} entries @param {boolean} nest @returns {Entry[]|undefined} */
+  const keep = (entries, nest) =>
+    Array.isArray(entries)
+      ? entries
+          .filter(isObject)
+          .map((e) => (nest ? { ...e, entries: keep(e.entries, false) } : e))
+      : undefined;
+  return {
+    ...value,
+    root: isObject(value.root) ? value.root : undefined,
+    sections: value.sections
+      .filter(isObject)
+      .map((s) => ({ ...s, entries: keep(s.entries, true) })),
+  };
 }
 
 /**

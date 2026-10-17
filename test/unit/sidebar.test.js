@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { normalise, openSection } from "../../web/sidebar.js";
+import { normalise, openSection, parse } from "../../web/sidebar.js";
 
 const manifest = {
   root: { title: "Docs" },
@@ -32,6 +32,49 @@ describe("normalise", () => {
     assert.equal(normalise("/app/index.md"), "/app/");
     assert.equal(normalise("/app/"), "/app/");
     assert.equal(normalise("/app/tenets.md"), "/app/tenets.md");
+  });
+});
+
+describe("parse", () => {
+  it("rejects what is not an object with sections[]", () => {
+    for (const value of [null, 3, "x", [], {}, { sections: {} }]) {
+      assert.equal(parse(value), null);
+    }
+  });
+
+  it("keeps a well-formed manifest", () => {
+    assert.equal(parse(manifest).sections.length, 3);
+    assert.equal(openSection(parse(manifest), "/app/user-stories/"), 0);
+  });
+
+  it("drops a section or entry that is not an object, at both levels", () => {
+    const parsed = parse({
+      root: "Docs",
+      sections: [
+        null,
+        {
+          title: "App",
+          path: "/app/index.md",
+          entries: [
+            7,
+            {
+              title: "Hub",
+              path: "/app/hub.md",
+              entries: [null, { path: "/app/n.md" }],
+            },
+          ],
+        },
+        { title: "No entries", path: "/x/index.md", entries: "nope" },
+      ],
+    });
+    assert.equal(parsed.root, undefined);
+    assert.equal(parsed.sections.length, 2);
+    assert.deepEqual(parsed.sections[0].entries[0].entries, [
+      { path: "/app/n.md" },
+    ]);
+    assert.equal(parsed.sections[1].entries, undefined);
+    assert.equal(openSection(parsed, "/app/n.md"), 0);
+    assert.equal(openSection(parsed, "/elsewhere/page.md"), -1);
   });
 });
 
