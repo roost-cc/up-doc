@@ -95,6 +95,46 @@ page that is no entry opens the section of the entry whose directory is the long
 of the page's path (the root directory `/` does not count); otherwise every section is
 closed. Under 800px the sidebar hides behind a "Menu" button.
 
+## Search: `search.json`
+
+A content root may hold a `search.json`: a serialized [MiniSearch](https://lucaong.github.io/minisearch/)
+index of its pages, built by whatever builds the content. When it is there, the viewer shows
+a search box (at the head of the sidebar, or at the top of the page without one) and searches
+in the browser; up-doc never builds or changes the index.
+
+```json
+{
+  "engine": "minisearch",
+  "minisearch": "7.2.0",
+  "options": {
+    "fields": ["title", "headings", "text"],
+    "storeFields": ["title", "section"]
+  },
+  "searchOptions": { "prefix": true, "fuzzy": 0.2 },
+  "index": {}
+}
+```
+
+- `engine` is `"minisearch"`.
+- `minisearch` is the version that built the index. Its major must equal the major of the
+  MiniSearch build up-doc loads (`web/cdn-scripts.js`, currently 7).
+- `options` are the options the index was built with, passed to `MiniSearch.loadJS`.
+- `searchOptions` are passed unchanged to every `search(query, searchOptions)`: ranking,
+  boosts, prefix and fuzzy matching are the file's to choose.
+- `index` is `MiniSearch#toJSON()`.
+
+A document's `id` is the root-relative path of its page (`/guide/start.md`); the result list
+shows its stored `title` and, in small text, its stored `section` when it has one. Up to twenty
+results are listed; Enter opens the first, Escape clears the box.
+
+Before the first keystroke the viewer only checks the root listing for the file. On the first
+keystroke it fetches and checks `search.json`, then loads MiniSearch from the CDN. A file
+another tool wrote (another `engine`, another major, a missing field, malformed JSON), a
+failed fetch or a blocked script logs one `console.warn` and disables the box with the
+placeholder "search unavailable"; the page is unaffected.
+
+## Updated line
+
 Every markdown page also shows an "Updated" line with the file's modification date (the
 `Last-Modified` header of its source).
 
@@ -106,7 +146,9 @@ npm test
 
 Runs the unit tests (`node --test test/unit/*.test.js`), then the Playwright viewer tests
 (`test/e2e/`), which start `node docserver.js` on each fixture root under `test/fixtures/`.
-Playwright needs its Chromium installed (`npx playwright install chromium`).
+Playwright needs its Chromium installed (`npx playwright install chromium`). The fixtures'
+`search.json` files are built from their pages by `node test/fixtures/build-search.js`; a unit
+test fails when one is out of date.
 
 ## Docker
 

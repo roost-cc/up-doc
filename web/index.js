@@ -6,6 +6,7 @@ import * as openapi from "./openapi.js";
 import { addScript } from "./util.js";
 import { highlightjs } from "./cdn-scripts.js";
 import * as sidebar from "./sidebar.js";
+import * as search from "./search.js";
 
 function buildBreadcrumbs(pathname) {
   const segments = pathname.split("/").filter(Boolean);
@@ -277,9 +278,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     // With a site.json the content goes in a column beside the sidebar; without one the body
     // is the content, as it always was
     let content = document.body;
-    const manifest = await sidebar.load();
+    const [manifest, searchable] = await Promise.all([
+      sidebar.load(),
+      search.probe(),
+    ]);
+    const box = searchable ? search.render() : null;
     if (manifest) {
       const nav = sidebar.render(manifest, window.location.pathname);
+      // The search box heads the sidebar, under the root title
+      if (box) nav.querySelector(".sidebar-root").after(box);
       content = document.createElement("main");
       content.className = "content";
       document.body.append(sidebar.toggle(nav), nav, content);
@@ -292,6 +299,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
     await markdownRenderer.init();
     await markdownRenderer.render();
+    // Without a sidebar the box goes at the top of the page, once the render has replaced it
+    if (box && !manifest) document.body.prepend(box);
   } catch (err) {
     console.error("[up-doc] render failed:", err);
   }

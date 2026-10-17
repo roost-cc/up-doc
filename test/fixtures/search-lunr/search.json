@@ -1,0 +1,6 @@
+{
+  "engine": "lunr",
+  "version": "2.3.9",
+  "fields": ["title", "body"],
+  "index": {}
+}

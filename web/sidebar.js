@@ -6,6 +6,8 @@
  * root-relative. Without a manifest there is no sidebar.
  */
 
+import { rootFiles } from "./util.js";
+
 /**
  * @typedef {{ title?: string, path?: string, entries?: Entry[] }} Entry
  * @typedef {{ title?: string, path?: string, entries?: Entry[] }} Section
@@ -19,13 +21,7 @@
  */
 export async function load() {
   try {
-    // The directory listing answers for any root, so a root without the file costs no 404.
-    const listing = await fetch("/ls:/");
-    if (!listing.ok) return null;
-    const names = await listing.json();
-    if (!Array.isArray(names) || !names.some((e) => e?.name === "site.json")) {
-      return null;
-    }
+    if (!(await rootFiles()).has("site.json")) return null;
     const response = await fetch("/src:/site.json");
     if (!response.ok) return null;
     const manifest = await response.json();

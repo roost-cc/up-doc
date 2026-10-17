@@ -562,6 +562,42 @@ body.has-sidebar.openapi-view {
   display: none;
 }
 
+/* Search box (only when the content root has a search.json) */
+.search {
+  margin-bottom: var(--spacing-lg);
+}
+
+.search-box {
+  width: 100%;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-small);
+}
+
+.search-box:disabled {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.search-results {
+  list-style: none;
+  padding: var(--spacing-xs) 0 0;
+  margin: 0;
+}
+
+.search-results li {
+  padding: var(--spacing-xs) 0;
+  border-bottom: 1px solid var(--border-color);
+  overflow-wrap: anywhere;
+}
+
+.search-section {
+  color: var(--text-secondary);
+}
+
 @media (max-width: 800px) {
   body.has-sidebar {
     display: block;

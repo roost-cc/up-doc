@@ -2,6 +2,10 @@
 export const FIXTURES = {
   plain: 4181,
   site: 4182,
+  search: 4183,
+  "search-lunr": 4184,
+  "search-major": 4185,
+  "search-malformed": 4186,
 };
 
 /**
