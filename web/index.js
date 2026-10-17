@@ -5,6 +5,7 @@ import * as modal from "./modal.js";
 import * as openapi from "./openapi.js";
 import { addScript } from "./util.js";
 import { highlightjs } from "./cdn-scripts.js";
+import * as sidebar from "./sidebar.js";
 
 function buildBreadcrumbs(pathname) {
   const segments = pathname.split("/").filter(Boolean);
@@ -58,6 +59,7 @@ export class MarkdownRenderer {
     this.directoryPath = null;
     this.contentType = null;
     this.jsonContent = null;
+    this.lastModified = null;
   }
 
   async init() {
@@ -122,6 +124,7 @@ export class MarkdownRenderer {
 
     this.html = frontmatterHtml + this.md.render(body);
     this.element.innerHTML = this.html;
+    this.insertUpdated();
     this.element.insertBefore(
       buildBreadcrumbs(window.location.pathname),
       this.element.firstChild,
@@ -130,6 +133,22 @@ export class MarkdownRenderer {
     for (const plugin of this.plugins) {
       await plugin.render(this);
     }
+  }
+
+  // "Updated <date>" from the Last-Modified header: after the first h1, else after the
+  // frontmatter table, else at the top of the content
+  insertUpdated() {
+    if (!this.lastModified) return;
+    const date = new Date(this.lastModified);
+    if (Number.isNaN(date.getTime())) return;
+    const line = document.createElement("p");
+    line.className = "updated";
+    line.textContent = `Updated ${date.toLocaleDateString()}`;
+    const after =
+      this.element.querySelector(":scope > h1") ??
+      this.element.querySelector(":scope > table.frontmatter");
+    if (after) after.after(line);
+    else this.element.prepend(line);
   }
 
   async renderOpenApi() {
@@ -243,6 +262,7 @@ export class MarkdownRenderer {
         }
       } else {
         this.markdown = await response.text();
+        this.lastModified = response.headers.get("last-modified");
       }
     } catch (error) {
       console.error("Error loading file:", error);
@@ -254,8 +274,19 @@ export class MarkdownRenderer {
 // Set up initialization when DOM is ready
 document.addEventListener("DOMContentLoaded", async () => {
   try {
+    // With a site.json the content goes in a column beside the sidebar; without one the body
+    // is the content, as it always was
+    let content = document.body;
+    const manifest = await sidebar.load();
+    if (manifest) {
+      const nav = sidebar.render(manifest, window.location.pathname);
+      content = document.createElement("main");
+      content.className = "content";
+      document.body.append(sidebar.toggle(nav), nav, content);
+      document.body.classList.add("has-sidebar");
+    }
     const markdownRenderer = new MarkdownRenderer(
-      document.body,
+      content,
       new MermaidRenderer(),
       new AsciinemaRenderer(),
     );

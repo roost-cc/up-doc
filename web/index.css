@@ -382,14 +382,14 @@ th {
   font-weight: 600;
   text-align: left;
   padding: 0.5rem 0.75rem;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 td {
   padding: 0.5rem 0.75rem;
   border-bottom: 1px solid var(--border-color);
   vertical-align: top;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 tbody tr:hover {
@@ -481,4 +481,128 @@ body.openapi-view {
 .openapi-view .breadcrumbs {
   padding: 0.75rem 2rem;
   margin-bottom: 0;
+}
+
+/* "Updated" line under the page title */
+.updated {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0.25rem 0 1rem;
+}
+
+/* Sidebar (only when the content root has a site.json) */
+body.has-sidebar {
+  max-width: none;
+  display: grid;
+  grid-template-columns: 16rem minmax(0, 800px);
+  justify-content: center;
+  align-items: start;
+  column-gap: var(--spacing-xl);
+}
+
+body.has-sidebar.openapi-view {
+  grid-template-columns: 16rem minmax(0, 1fr);
+  justify-content: stretch;
+}
+
+.content {
+  min-width: 0;
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  max-height: 100vh;
+  overflow-y: auto;
+  font-size: 0.9rem;
+  padding: var(--spacing-sm) 0;
+}
+
+.sidebar a {
+  color: var(--text);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.sidebar a:hover {
+  color: var(--link);
+  text-decoration: underline;
+}
+
+.sidebar a[aria-current='page'] {
+  color: var(--link);
+  font-weight: 600;
+}
+
+.sidebar-root {
+  display: block;
+  font-weight: 600;
+  margin-bottom: var(--spacing-sm);
+}
+
+.sidebar details {
+  margin-bottom: var(--spacing-xs);
+}
+
+.sidebar summary {
+  cursor: pointer;
+  padding: var(--spacing-xs) 0;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding-left: 1em;
+}
+
+.sidebar li {
+  margin-bottom: 0.15em;
+}
+
+.sidebar-toggle {
+  display: none;
+}
+
+@media (max-width: 800px) {
+  body.has-sidebar {
+    display: block;
+    padding: 16px;
+  }
+
+  .sidebar-toggle {
+    display: inline-block;
+    margin-bottom: var(--spacing-lg);
+    padding: var(--spacing-xs) var(--spacing-md);
+    font: inherit;
+    color: var(--text);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-small);
+    cursor: pointer;
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  body.sidebar-open .sidebar {
+    display: block;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(20rem, 85vw);
+    max-height: none;
+    padding: 16px;
+    background: var(--bg);
+    border-right: 1px solid var(--border-color);
+    box-shadow: 0 2px 8px var(--shadow-color);
+    z-index: 900;
+  }
+
+  body.sidebar-open .sidebar-toggle {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 901;
+  }
 }

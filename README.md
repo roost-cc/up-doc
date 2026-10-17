@@ -56,6 +56,58 @@ Enable HTTP Basic Auth:
 DOC_USER=admin DOC_PASS=secret node docserver.js
 ```
 
+## Sidebar: `site.json`
+
+A content root may hold a `site.json` describing its navigation. When it is there, every
+page shows a sidebar built from it; when it is missing, or is not an object with a
+`sections` array, the viewer shows no sidebar and behaves as if the file did not exist.
+
+```json
+{
+  "root": { "title": "Handbook" },
+  "sections": [
+    {
+      "title": "Guide",
+      "path": "/guide/index.md",
+      "entries": [
+        { "title": "Getting started", "path": "/guide/start.md" },
+        {
+          "title": "Reference",
+          "path": "/guide/reference.md",
+          "entries": [{ "title": "Options", "path": "/guide/ref/options.md" }]
+        }
+      ]
+    }
+  ]
+}
+```
+
+- `root.title` heads the sidebar and links `/`.
+- Each of `sections` is a collapsible group: its `title` links its `path`, and its
+  `entries` are listed under it.
+- An entry is `{ title, path }`. An entry may carry its own `entries` (a hub), listed under
+  it; deeper nesting is not rendered.
+- Paths are root-relative. `/guide/` and `/guide/index.md` are the same page.
+- Other fields (a `blurb`, an `id`) are ignored.
+
+The entry for the current page is marked `aria-current="page"` and its section is open. A
+page that is no entry opens the section of the entry whose directory is the longest prefix
+of the page's path (the root directory `/` does not count); otherwise every section is
+closed. Under 800px the sidebar hides behind a "Menu" button.
+
+Every markdown page also shows an "Updated" line with the file's modification date (the
+`Last-Modified` header of its source).
+
+## Tests
+
+```bash
+npm test
+```
+
+Runs the unit tests (`node --test test/unit/*.test.js`), then the Playwright viewer tests
+(`test/e2e/`), which start `node docserver.js` on each fixture root under `test/fixtures/`.
+Playwright needs its Chromium installed (`npx playwright install chromium`).
+
 ## Docker
 
 ```bash

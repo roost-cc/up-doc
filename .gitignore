@@ -7,3 +7,5 @@ node_modules/
 .claude
 .claude/projects/
 .claude/*.jsonl
+test-results/
+playwright-report/

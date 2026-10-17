@@ -6,7 +6,7 @@ import {
   stripCode,
   stripCodeSpans,
   stripFencedCode,
-} from "../scripts/markdown-links.js";
+} from "../../scripts/markdown-links.js";
 
 const PLACEHOLDER = "![](charts/<name>.svg)";
 

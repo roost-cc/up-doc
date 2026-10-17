@@ -12,7 +12,7 @@
   },
   "scripts": {
     "start": "node docserver.js",
-    "test": "node --test",
+    "test": "node --test 'test/unit/*.test.js' && playwright test -c test/playwright.config.js",
     "check": "node scripts/check.js",
     "check-links": "node scripts/check-links.js"
   },
@@ -20,5 +20,8 @@
   "license": "ISC",
   "dependencies": {
     "mime-types": "^3.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
   }
 }

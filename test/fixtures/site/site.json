@@ -1,0 +1,52 @@
+{
+  "root": {
+    "title": "Fixture docs",
+    "blurb": "A small site for the viewer tests."
+  },
+  "sections": [
+    {
+      "id": "guide",
+      "title": "Guide",
+      "blurb": "How to use the thing.",
+      "path": "/guide/index.md",
+      "entries": [
+        {
+          "path": "/guide/intro.md",
+          "title": "Introduction",
+          "blurb": "Start here."
+        },
+        {
+          "path": "/guide/tables.md",
+          "title": "Tables",
+          "blurb": "Wide tables."
+        },
+        {
+          "path": "/guide/reference.md",
+          "title": "Reference",
+          "blurb": "A hub.",
+          "entries": [
+            {
+              "path": "/guide/ref/alpha.md",
+              "title": "Alpha",
+              "blurb": "The first."
+            },
+            {
+              "path": "/guide/ref/beta.md",
+              "title": "Beta",
+              "blurb": "The second."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "other",
+      "title": "Other",
+      "blurb": "Everything else.",
+      "path": "/other/index.md",
+      "entries": [
+        { "path": "/other/notes.md", "title": "Notes", "blurb": "Notes." }
+      ]
+    }
+  ]
+}
