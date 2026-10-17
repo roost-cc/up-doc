@@ -61,13 +61,19 @@ export function parse(value) {
 }
 
 /**
- * A path with a trailing `index.md` dropped, so a directory and its index are the same page.
+ * A path percent-decoded and with a trailing `index.md` dropped, so a directory and its index
+ * are the same page and the browser's encoded pathname matches the manifest's path in either
+ * form. A path that does not decode is compared as written.
  *
  * @param {string} pathname
  * @returns {string}
  */
 export function normalise(pathname) {
-  return pathname.replace(/\/index\.md$/i, "/");
+  let decoded = pathname;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {}
+  return decoded.replace(/\/index\.md$/i, "/");
 }
 
 /** @param {string} pathname */

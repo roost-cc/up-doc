@@ -35,6 +35,43 @@ describe("normalise", () => {
   });
 });
 
+describe("openSection matches encoded browser pathnames to manifest paths", () => {
+  /** Each manifest path, written raw and encoded, against the pathname the browser reports. */
+  const CASES = [
+    ["ascii", "/guide/sub/page.md", "/guide/sub/page.md"],
+    ["index.md", "/guide/sub/index.md", "/guide/sub/"],
+    ["space", "/guide/my docs/my page.md", "/guide/my%20docs/my%20page.md"],
+    ["reserved", "/guide/a#b?c/d#e.md", "/guide/a%23b%3Fc/d%23e.md"],
+    ["unicode", "/guide/café/naïve.md", "/guide/caf%C3%A9/na%C3%AFve.md"],
+  ];
+  for (const [name, raw, browser] of CASES) {
+    for (const [form, path] of [
+      ["raw", raw],
+      ["encoded", browser],
+    ]) {
+      it(`${name}, manifest ${form}`, () => {
+        // Section 0 holds the parent directory, so only a match on the entry picks section 1
+        const m = {
+          sections: [
+            { path: "/guide/a.md" },
+            { path: "/elsewhere.md", entries: [{ path }] },
+          ],
+        };
+        // Exact entry match
+        assert.equal(openSection(m, browser), 1);
+        // Longest directory prefix: an unlisted page beside the entry
+        const dir = browser.slice(0, browser.lastIndexOf("/") + 1);
+        assert.equal(openSection(m, `${dir}unlisted.md`), 1);
+        // aria-current compares the same normalised forms
+        assert.equal(normalise(path), normalise(browser));
+      });
+    }
+  }
+  it("compares a path that does not decode as written", () => {
+    assert.equal(normalise("/guide/100%.md"), "/guide/100%.md");
+  });
+});
+
 describe("parse", () => {
   it("rejects what is not an object with sections[]", () => {
     for (const value of [null, 3, "x", [], {}, { sections: {} }]) {
