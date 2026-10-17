@@ -267,7 +267,8 @@ export class MarkdownRenderer {
       }
     } catch (error) {
       console.error("Error loading file:", error);
-      document.body.innerHTML = `<div class="error">Error loading file: ${error.message}</div>`;
+      // Into the content column, so a missing page keeps the sidebar
+      this.element.innerHTML = `<div class="error">Error loading file: ${error.message}</div>`;
     }
   }
 }

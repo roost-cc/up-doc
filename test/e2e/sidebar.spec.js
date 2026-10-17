@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-import { open, scrollsSideways } from "./fixtures.js";
+import { open, scrollsSideways, url } from "./fixtures.js";
 
 test.describe("without site.json", () => {
   test("no sidebar, no toggle and no console output", async ({ page }) => {
@@ -93,6 +93,17 @@ test.describe("with site.json", () => {
     await open(page, "site", "/loose.md");
 
     await expect(page.locator("nav.sidebar details[open]")).toHaveCount(0);
+  });
+
+  test("a missing page keeps the sidebar beside its error", async ({
+    page,
+  }) => {
+    await page.goto(url("site", "/guide/no-such-page.md"));
+
+    await expect(page.locator("main.content > .error")).toContainText(
+      "File not found",
+    );
+    await expect(page.locator("nav.sidebar .sidebar-root")).toBeVisible();
   });
 });
 
