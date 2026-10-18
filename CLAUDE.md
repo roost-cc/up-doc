@@ -12,5 +12,6 @@
 - SPA assets: `web/` directory, served at `/_/` prefix
 - Link checker: `scripts/check-links.js`; link extraction (fenced code blocks and code spans
   stripped first; indented code is not) in `scripts/markdown-links.js`
-- Tests: `npm test` (`node --test`, files in `test/`). Format with `prettier --no-config`; the repo has
+- Tests: `npm test` runs `node --test` over `test/unit/`, then Playwright (`test/e2e/`, config
+  `test/playwright.config.js`) against `docserver.js` on the roots in `test/fixtures/`. Format with `prettier --no-config`; the repo has
   no prettier config and follows the defaults.

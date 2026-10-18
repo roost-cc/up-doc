@@ -35,6 +35,14 @@ export const scalar = {
   referrerpolicy: 'no-referrer',
 };
 
+/** The search engine; the major version in this URL is the one a `search.json` must match. */
+export const minisearch = {
+  src: 'https://cdn.jsdelivr.net/npm/minisearch@7.2.0/dist/umd/index.js',
+  integrity: 'sha384-KuHy7eg9MqWBVrMXJC0WN6q4d3+KBquZ3Htgex79A4REptrDvGOXfAgZ0VOJ1Mdx',
+  crossorigin: 'anonymous',
+  referrerpolicy: 'no-referrer',
+};
+
 export const asciinema_script = {
   src: 'https://cdn.jsdelivr.net/npm/asciinema-player@3.12.1/dist/bundle/asciinema-player.min.js',
   integrity: 'sha256-VoS8wUKbD63rWOmKvq3G0RYrbWAeVrTCbF5vl1qWXBw=',

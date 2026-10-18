@@ -1,0 +1,7 @@
+{
+  "engine": "minisearch",
+  "minisearch": "6.3.0",
+  "options": { "fields": ["title"], "storeFields": ["title"] },
+  "searchOptions": { "prefix": true },
+  "index": {}
+}

@@ -23,6 +23,43 @@ export function addScript(attributes) {
   return promise;
 }
 
+/** @type {Promise<Set<string>>|null} */
+let rootListing = null;
+
+/**
+ * The names of the files at the content root, from one `/ls:/` request per page. The listing
+ * answers for any root, so asking whether an optional file is there costs no 404 (Chromium logs
+ * every 404 to the console). An empty set when the listing fails.
+ *
+ * @returns {Promise<Set<string>>}
+ */
+export function rootFiles() {
+  rootListing ??= (async () => {
+    try {
+      const response = await fetch('/ls:/');
+      if (!response.ok) return new Set();
+      const entries = await response.json();
+      if (!Array.isArray(entries)) return new Set();
+      return new Set(entries.filter((e) => e?.type === 'file').map((e) => e.name));
+    } catch {
+      return new Set();
+    }
+  })();
+  return rootListing;
+}
+
+/**
+ * The URL for a root-relative file path, each segment percent-encoded, so a space, `#`, `?` or
+ * `%` in a file name stays part of the name. The browser's pathname for it decodes back to
+ * `path` exactly.
+ *
+ * @param {string} path
+ * @returns {string}
+ */
+export function pathHref(path) {
+  return path.split('/').map(encodeURIComponent).join('/');
+}
+
 export function addCSSLink(attributes) {
   if (!attributes.href) {
     throw new Error('href is required');
