@@ -1,5 +1,6 @@
 import * as markdown from "./markdown.js";
 import { MermaidRenderer } from "./mermaid.js";
+import { VegaLiteRenderer } from "./vega-lite.js";
 import { AsciinemaRenderer } from "./asciinema.js";
 import * as modal from "./modal.js";
 import * as openapi from "./openapi.js";
@@ -296,6 +297,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const markdownRenderer = new MarkdownRenderer(
       content,
       new MermaidRenderer(),
+      // After the mermaid renderer: it wraps the fence rule that one sets
+      new VegaLiteRenderer(),
       new AsciinemaRenderer(),
     );
     await markdownRenderer.init();

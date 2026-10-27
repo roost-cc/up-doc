@@ -307,6 +307,22 @@ h6 {
   }
 }
 
+/* Vega-Lite Charts: vega-embed makes its element inline-block, which leaves a
+   `width: "container"` spec no width to fill */
+.vega-lite.vega-embed {
+  display: block;
+  width: 100%;
+  margin: var(--spacing-lg) 0;
+}
+
+.vega-lite-invalid {
+  margin: var(--spacing-lg) 0;
+
+  .error {
+    margin-bottom: var(--spacing-sm);
+  }
+}
+
 /* Modal */
 .modal {
   display: none;
