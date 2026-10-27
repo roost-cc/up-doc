@@ -97,6 +97,22 @@ test.describe('vega-lite fences render as charts', () => {
     await expect(page.locator('pre code.hljs').last()).toContainText('the rest of the page');
   });
 
+  for (const script of ['vega', 'vega-lite', 'vega-embed']) {
+    test(`vega_dependency_failure_preserves_page_and_chart_sources: ${script} unavailable`, async ({ page }) => {
+      await page.route(new RegExp(`/npm/${script}@`), (route) => route.abort());
+      await open(page, 'plain', '/vega-lite/invalid.md');
+
+      // Every block, valid or not, shows its source under an error, and the rest of the page renders
+      const invalid = page.locator('.vega-lite-invalid');
+      await expect(invalid).toHaveCount(3);
+      await expect(invalid.nth(2).locator('.error')).toContainText('Vega-Lite chart not drawn: the chart scripts did not load');
+      await expect(invalid.nth(2).locator('pre code')).toContainText('"b": 5');
+      await expect(page.locator('div.vega-lite')).toHaveCount(0);
+      await expect(page.locator('.mermaid-container svg')).toHaveCount(1);
+      await expect(page.locator('pre code.hljs').last()).toContainText('the rest of the page');
+    });
+  }
+
   test('a page without a vega-lite fence loads no chart script', async ({ page }) => {
     const requests = [];
     page.on('request', (r) => requests.push(r.url()));

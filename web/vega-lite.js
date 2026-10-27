@@ -9,12 +9,15 @@ const DARK = '(prefers-color-scheme: dark)';
 /**
  * Draws ` ```vega-lite ` fences (a Vega-Lite spec as JSON) as SVG charts with vega-embed, in
  * Vega's `dark` theme while the page is dark. It knows the format only, nothing about who
- * wrote the spec.
+ * wrote the spec. The charts are optional: when their scripts do not load, the page still
+ * renders and each block shows its source under the error.
  */
 export class VegaLiteRenderer {
   constructor() {
     this.initialized = false;
     this.renderer = null;
+    /** Why the chart scripts are not there, when they did not load. @type {Error | null} */
+    this.unavailable = null;
     /** @type {{ element: HTMLElement, spec: object, result: any }[]} */
     this.charts = [];
   }
@@ -41,11 +44,20 @@ export class VegaLiteRenderer {
     // a fence in a blockquote or list counts the same as the fence rule sees it
     const tokens = renderer.md.parse(renderer.markdown ?? '', {});
     if (tokens.some((t) => t.type === 'fence' && t.info.trim() === 'vega-lite')) {
-      // vega-lite and vega-embed read the globals the scripts before them set
-      await addScript(vega_cdn);
-      await addScript(vegaLite_cdn);
-      await addScript(vegaEmbed_cdn);
-      window.matchMedia(DARK).addEventListener('change', () => this.redraw());
+      try {
+        // vega-lite and vega-embed read the globals the scripts before them set
+        await addScript(vega_cdn);
+        await addScript(vegaLite_cdn);
+        await addScript(vegaEmbed_cdn);
+        if (typeof vegaEmbed !== 'function') throw new Error('vega-embed is not defined');
+        window.matchMedia(DARK).addEventListener('change', () => this.redraw());
+      } catch (error) {
+        // A failed script rejects with its error event, not an Error
+        console.error('Vega-Lite scripts failed to load:', error);
+        this.unavailable = new Error(
+          `the chart scripts did not load${error instanceof Error ? ` (${error.message})` : ''}`,
+        );
+      }
     }
     this.initialized = true;
   }
@@ -63,6 +75,10 @@ export class VegaLiteRenderer {
     await Promise.all(
       placeholders.map(async (element) => {
         const source = decodeURIComponent(element.getAttribute('data-source'));
+        if (this.unavailable) {
+          element.replaceWith(fallback(source, this.unavailable));
+          return;
+        }
         try {
           const spec = JSON.parse(source);
           const chart = { element, spec, result: null };
@@ -93,15 +109,23 @@ export class VegaLiteRenderer {
     });
   }
 
-  /** Draw every chart again in the scheme that now applies. */
+  /** Draw every chart again in the scheme that now applies; one that fails shows its source. */
   async redraw() {
+    const failed = new Set();
     await Promise.all(
       this.charts.map(async (chart) => {
-        chart.result?.finalize();
-        chart.element.replaceChildren();
-        chart.result = await this.embed(chart.element, chart.spec);
+        try {
+          chart.result?.finalize();
+          chart.element.replaceChildren();
+          chart.result = await this.embed(chart.element, chart.spec);
+        } catch (error) {
+          console.error('Vega-Lite redraw failed:', error);
+          chart.element.replaceWith(fallback(JSON.stringify(chart.spec, null, 2), error));
+          failed.add(chart);
+        }
       }),
     );
+    this.charts = this.charts.filter((chart) => !failed.has(chart));
   }
 }
 
