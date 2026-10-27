@@ -43,6 +43,32 @@ export const minisearch = {
   referrerpolicy: 'no-referrer',
 };
 
+/**
+ * The Vega-Lite chart renderer: `vega`, then `vega-lite` and `vega-embed`, which read the
+ * globals the earlier ones set, so they load in this order. Vega-Lite 5 reads the v5 specs
+ * `bl report` writes; vega-embed 6 bundles the themes (`dark`) and the tooltip handler.
+ */
+export const vega = {
+  src: 'https://cdn.jsdelivr.net/npm/vega@5.33.1/build/vega.min.js',
+  integrity: 'sha512-+GViBV02lldi4aBOR8OWMdGu5ApqARUG69Bkh0hNnEwGRqWbqBFV6UFMkOSw6bwVeLAUCfXDjvogYHc6vMTV9w==',
+  crossorigin: 'anonymous',
+  referrerpolicy: 'no-referrer',
+};
+
+export const vegaLite = {
+  src: 'https://cdn.jsdelivr.net/npm/vega-lite@5.23.0/build/vega-lite.min.js',
+  integrity: 'sha512-dT3pPQcxzshiv0WnkUzBS6BMECn95uEVvIdofdO4jNg8rSlDqeuMyvEUvZ8Xbr8jQwIItKnzBi0F/B00burNcQ==',
+  crossorigin: 'anonymous',
+  referrerpolicy: 'no-referrer',
+};
+
+export const vegaEmbed = {
+  src: 'https://cdn.jsdelivr.net/npm/vega-embed@6.29.0/build/vega-embed.min.js',
+  integrity: 'sha512-0RVfLKHWgepeHYozLLj5rxH2Kr18r+QQQY3XgGqJQjY+F52nsAWAe8drSYWksApUy6F5GizX7sXuZu8rxmzpbw==',
+  crossorigin: 'anonymous',
+  referrerpolicy: 'no-referrer',
+};
+
 export const asciinema_script = {
   src: 'https://cdn.jsdelivr.net/npm/asciinema-player@3.12.1/dist/bundle/asciinema-player.min.js',
   integrity: 'sha256-VoS8wUKbD63rWOmKvq3G0RYrbWAeVrTCbF5vl1qWXBw=',

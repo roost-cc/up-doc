@@ -2,7 +2,7 @@
 
 Markdown and OpenAPI documentation server with client-side rendering. Serves any
 directory of markdown files as a browsable documentation site with live rendering,
-syntax highlighting, Mermaid diagrams, and OpenAPI spec viewing.
+syntax highlighting, Mermaid diagrams, Vega-Lite charts, and OpenAPI spec viewing.
 
 ## Quick Start
 
@@ -135,6 +135,19 @@ keystroke it fetches and checks `search.json`, then loads MiniSearch from the CD
 another tool wrote (another `engine`, another major, a missing field, malformed JSON), a
 failed fetch or a blocked script logs one `console.warn` and disables the box with the
 placeholder "search unavailable"; the page is unaffected.
+
+## Rendered fences
+
+A fenced code block is drawn by its language:
+
+- ` ```mermaid `: a [Mermaid](https://mermaid.js.org/) diagram.
+- ` ```vega-lite `: a chart. The block holds one [Vega-Lite](https://vega.github.io/vega-lite/)
+  v5 spec as JSON, drawn as SVG by `vega-embed` in Vega's `dark` theme while
+  `prefers-color-scheme: dark` matches, and drawn again when the scheme changes. A spec with
+  `width: "container"` fills the content column. A block that is not JSON or not a valid
+  spec shows its source under a one-line error. The Vega scripts load only on a page with
+  such a fence.
+- Any other language: syntax-highlighted code.
 
 ## Updated line
 
