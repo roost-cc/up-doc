@@ -36,6 +36,40 @@ test.describe('vega-lite fences render as charts', () => {
     }
   }
 
+  test('weekly bars retain ISO Monday coordinates including year boundaries', async ({ page }) => {
+    await open(page, 'plain', '/vega-lite/layered.md');
+    await expect(page.locator('div.vega-lite svg')).toHaveCount(1);
+
+    // Lay the page's own spec out again, headless, to read each bar's edges in scale units
+    const source = decodeURIComponent(await page.locator('div.vega-lite').getAttribute('data-source'));
+    const bars = await page.evaluate(async (text) => {
+      const view = new window.vega.View(window.vega.parse(window.vegaLite.compile(JSON.parse(text)).spec), {
+        renderer: 'none',
+      });
+      await view.runAsync();
+      const x = view.scale('x');
+      const day = (px) => new Date(x.invert(px)).toISOString().slice(0, 10);
+      const rects = [];
+      const walk = (node) => {
+        if (node.marktype === 'rect' && node.role === 'mark') {
+          for (const item of node.items) rects.push([day(item.x), day(item.x + item.width)]);
+        }
+        for (const child of node.items ?? []) walk(child);
+      };
+      walk(view.scenegraph().root);
+      return rects.sort();
+    }, source);
+
+    // Monday to Monday, across the year boundary (ISO 2026-W01 starts on 2025-12-29)
+    expect(bars).toEqual([
+      ['2025-12-15', '2025-12-22'],
+      ['2025-12-22', '2025-12-29'],
+      ['2025-12-29', '2026-01-05'],
+      ['2026-01-05', '2026-01-12'],
+      ['2026-01-12', '2026-01-19'],
+    ]);
+  });
+
   test('a chart redraws when the scheme changes', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' });
     await open(page, 'plain', '/vega-lite/stacked-area.md');

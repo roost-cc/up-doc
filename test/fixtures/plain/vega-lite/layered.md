@@ -1,6 +1,7 @@
 # Layered line and bar
 
-A throughput chart, as `bl report` writes it.
+A throughput chart, as `bl report` writes it, over the weeks across a year boundary. Each bar spans
+its ISO week, Monday to Monday.
 
 ```vega-lite
 {
@@ -12,61 +13,66 @@ A throughput chart, as `bl report` writes it.
     "values": [
       {
         "series": "points done",
-        "x": "2026-09-07",
+        "x": "2025-12-15",
+        "x2": "2025-12-22",
         "y": 4,
         "order": 0
       },
       {
         "series": "points done",
-        "x": "2026-09-14",
+        "x": "2025-12-22",
+        "x2": "2025-12-29",
         "y": 4,
         "order": 0
       },
       {
         "series": "points done",
-        "x": "2026-09-21",
+        "x": "2025-12-29",
+        "x2": "2026-01-05",
         "y": 6,
         "order": 0
       },
       {
         "series": "points done",
-        "x": "2026-09-28",
+        "x": "2026-01-05",
+        "x2": "2026-01-12",
         "y": 6,
         "order": 0
       },
       {
         "series": "points done",
-        "x": "2026-10-05",
+        "x": "2026-01-12",
+        "x2": "2026-01-19",
         "y": 5,
         "order": 0
       },
       {
         "series": "4-week average",
-        "x": "2026-09-07",
+        "x": "2025-12-15",
         "y": 4,
         "order": 1
       },
       {
         "series": "4-week average",
-        "x": "2026-09-14",
+        "x": "2025-12-22",
         "y": 4,
         "order": 1
       },
       {
         "series": "4-week average",
-        "x": "2026-09-21",
+        "x": "2025-12-29",
         "y": 4.7,
         "order": 1
       },
       {
         "series": "4-week average",
-        "x": "2026-09-28",
+        "x": "2026-01-05",
         "y": 5,
         "order": 1
       },
       {
         "series": "4-week average",
-        "x": "2026-10-05",
+        "x": "2026-01-12",
         "y": 5.25,
         "order": 1
       }
@@ -98,8 +104,10 @@ A throughput chart, as `bl report` writes it.
           "axis": {
             "format": "%b %Y",
             "tickCount": "month"
-          },
-          "timeUnit": "utcyearweek"
+          }
+        },
+        "x2": {
+          "field": "x2"
         },
         "y": {
           "field": "y",
