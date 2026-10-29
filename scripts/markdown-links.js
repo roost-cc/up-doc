@@ -23,7 +23,7 @@ const FENCE_PREFIX = String.raw`^(?: {0,3}>[ \t]?)* {0,3}`;
 const FENCE_LIKE = /^(?: {0,3}>[ \t]?)*([ \t]*)(`{3,}|~{3,})(.*?)\r?$/;
 
 /** @param {string} indent the whitespace before a fence-shaped run */
-const isIndentedCode = (indent) => indent.length >= 4 || indent.includes("\t");
+const isIndentedCode = (indent) => indent.length >= 4 || indent.includes('\t');
 
 /**
  * Replace every fenced code block (``` or ~~~) with blank lines.
@@ -38,13 +38,13 @@ const isIndentedCode = (indent) => indent.length >= 4 || indent.includes("\t");
  * @returns {string} the same text with fenced blocks blanked out
  */
 export function stripFencedCode(text) {
-  const lines = text.split("\n");
+  const lines = text.split('\n');
   /** @type {RegExp | null} */
   let closeRe = null;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (closeRe) {
-      lines[i] = "";
+      lines[i] = '';
       if (closeRe.test(line)) closeRe = null;
       continue;
     }
@@ -55,15 +55,15 @@ export function stripFencedCode(text) {
       // Indented code, not a fence: neutralise only the run so it can neither
       // open a fence nor open a span across the prose that follows. The rest
       // of the line stays, so a link on it is still checked.
-      lines[i] = line.replace(fence, " ");
+      lines[i] = line.replace(fence, ' ');
       continue;
     }
     const ch = fence[0];
-    if (ch === "`" && info.includes("`")) continue;
+    if (ch === '`' && info.includes('`')) continue;
     closeRe = new RegExp(FENCE_PREFIX + `${ch}{${fence.length},}[ \\t\\r]*$`);
-    lines[i] = "";
+    lines[i] = '';
   }
-  return lines.join("\n");
+  return lines.join('\n');
 }
 
 /**
@@ -82,9 +82,9 @@ export function stripCodeSpans(text) {
   for (const m of text.matchAll(/`+/g)) {
     runs.push({ index: m.index, length: m[0].length });
   }
-  let out = "";
+  let out = '';
   let pos = 0;
-  for (let i = 0; i < runs.length;) {
+  for (let i = 0; i < runs.length; ) {
     const open = runs[i];
     let j = i + 1;
     while (j < runs.length && runs[j].length !== open.length) j++;
@@ -93,7 +93,7 @@ export function stripCodeSpans(text) {
       continue;
     }
     const close = runs[j];
-    out += text.slice(pos, open.index) + " ";
+    out += text.slice(pos, open.index) + ' ';
     pos = close.index + close.length;
     i = j + 1;
   }

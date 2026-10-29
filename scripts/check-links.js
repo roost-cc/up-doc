@@ -15,28 +15,28 @@
  * resolved URL path. Matched links are treated as OK: not fetched, not crawled.
  */
 
-import fs from "node:fs";
-import { parseArgs } from "node:util";
+import fs from 'node:fs';
+import { parseArgs } from 'node:util';
 
-import { extractLinks } from "./markdown-links.js";
+import { extractLinks } from './markdown-links.js';
 
 const { values, positionals } = parseArgs({
   options: {
-    skip: { type: "string", multiple: true },
-    "skip-file": { type: "string" },
+    skip: { type: 'string', multiple: true },
+    'skip-file': { type: 'string' },
   },
   allowPositionals: true,
 });
 
-const BASE = positionals[0] || "http://localhost:8082";
+const BASE = positionals[0] || 'http://localhost:8082';
 
 /** @type {RegExp[]} */
 const skips = [];
 for (const pat of values.skip ?? []) skips.push(new RegExp(pat));
-if (values["skip-file"]) {
-  const skipFile = values["skip-file"];
-  const text = fs.readFileSync(skipFile, "utf8");
-  const lines = text.split("\n");
+if (values['skip-file']) {
+  const skipFile = values['skip-file'];
+  const text = fs.readFileSync(skipFile, 'utf8');
+  const lines = text.split('\n');
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i];
     if (/^\s*(#.*)?$/.test(raw)) continue;
@@ -44,9 +44,7 @@ if (values["skip-file"]) {
     try {
       skips.push(new RegExp(pattern));
     } catch (err) {
-      throw new Error(
-        `Invalid regex in ${skipFile}:${i + 1}: ${pattern}\n  ${err.message}`,
-      );
+      throw new Error(`Invalid regex in ${skipFile}:${i + 1}: ${pattern}\n  ${err.message}`);
     }
   }
 }
@@ -56,9 +54,9 @@ const checked = new Set();
 const broken = [];
 
 async function findEntry() {
-  for (const candidate of ["/index.md", "/INDEX.md", "/README.md"]) {
+  for (const candidate of ['/index.md', '/INDEX.md', '/README.md']) {
     try {
-      const res = await fetch(BASE + "/src:" + candidate, { method: "HEAD" });
+      const res = await fetch(BASE + '/src:' + candidate, { method: 'HEAD' });
       if (res.status === 200) {
         checked.add(candidate);
         return candidate;
@@ -67,7 +65,7 @@ async function findEntry() {
       // fall through
     }
   }
-  return "/index.md";
+  return '/index.md';
 }
 
 const queue = [await findEntry()];
@@ -75,7 +73,7 @@ const queue = [await findEntry()];
 async function urlExists(path) {
   if (checked.has(path)) return true;
   try {
-    const res = await fetch(BASE + "/src:" + path, { method: "HEAD" });
+    const res = await fetch(BASE + '/src:' + path, { method: 'HEAD' });
     if (res.status === 200) {
       checked.add(path);
       return true;
@@ -87,15 +85,15 @@ async function urlExists(path) {
 }
 
 function resolve(href, pagePath) {
-  if (href.startsWith("/")) return href;
-  const dir = pagePath.replace(/[^/]*$/, "");
-  const parts = (dir + href).split("/");
+  if (href.startsWith('/')) return href;
+  const dir = pagePath.replace(/[^/]*$/, '');
+  const parts = (dir + href).split('/');
   const out = [];
   for (const p of parts) {
-    if (p === "..") out.pop();
-    else if (p !== "." && p !== "") out.push(p);
+    if (p === '..') out.pop();
+    else if (p !== '.' && p !== '') out.push(p);
   }
-  return "/" + out.join("/");
+  return '/' + out.join('/');
 }
 
 async function crawl(pagePath) {
@@ -104,25 +102,19 @@ async function crawl(pagePath) {
 
   let text;
   try {
-    const res = await fetch(BASE + "/src:" + pagePath);
+    const res = await fetch(BASE + '/src:' + pagePath);
     if (res.status !== 200) {
-      broken.push({ page: "(entry)", link: pagePath, status: res.status });
+      broken.push({ page: '(entry)', link: pagePath, status: res.status });
       return;
     }
     text = await res.text();
   } catch {
-    broken.push({ page: "(entry)", link: pagePath, status: "ERR" });
+    broken.push({ page: '(entry)', link: pagePath, status: 'ERR' });
     return;
   }
 
   for (const href of extractLinks(text)) {
-    if (
-      !href ||
-      href.startsWith("http") ||
-      href.startsWith("mailto:") ||
-      href.startsWith("data:")
-    )
-      continue;
+    if (!href || href.startsWith('http') || href.startsWith('mailto:') || href.startsWith('data:')) continue;
 
     const resolved = resolve(href, pagePath);
 
@@ -135,7 +127,7 @@ async function crawl(pagePath) {
     if (!exists) {
       broken.push({ page: pagePath, link: href, resolved, status: 404 });
     }
-    if (resolved.endsWith(".md") && !visited.has(resolved) && exists) {
+    if (resolved.endsWith('.md') && !visited.has(resolved) && exists) {
       queue.push(resolved);
     }
   }
@@ -144,9 +136,7 @@ async function crawl(pagePath) {
 while (queue.length > 0) {
   await crawl(queue.shift());
 }
-console.log(
-  `Crawled ${visited.size} pages, checked ${checked.size} unique URLs`,
-);
+console.log(`Crawled ${visited.size} pages, checked ${checked.size} unique URLs`);
 if (broken.length) {
   console.log(`\n${broken.length} BROKEN LINKS:`);
   for (const b of broken) {
@@ -155,5 +145,5 @@ if (broken.length) {
   }
   process.exit(1);
 } else {
-  console.log("All links OK");
+  console.log('All links OK');
 }

@@ -3,9 +3,9 @@ export const FIXTURES = {
   plain: 4181,
   site: 4182,
   search: 4183,
-  "search-lunr": 4184,
-  "search-major": 4185,
-  "search-malformed": 4186,
+  'search-lunr': 4184,
+  'search-major': 4185,
+  'search-malformed': 4186,
 };
 
 /**
@@ -26,7 +26,7 @@ export function url(name, pathname) {
  */
 export async function open(page, name, pathname) {
   await page.goto(url(name, pathname));
-  await page.locator("nav.breadcrumbs").waitFor();
+  await page.locator('nav.breadcrumbs').waitFor();
 }
 
 /**
@@ -36,9 +36,5 @@ export async function open(page, name, pathname) {
  * @returns {Promise<boolean>}
  */
 export function scrollsSideways(page) {
-  return page.evaluate(
-    () =>
-      document.documentElement.scrollWidth >
-      document.documentElement.clientWidth,
-  );
+  return page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
 }
