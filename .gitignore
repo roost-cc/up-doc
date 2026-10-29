@@ -7,5 +7,8 @@ node_modules/
 .claude
 .claude/projects/
 .claude/*.jsonl
+# Local agent instructions and MCP servers: kept out of the public repo
+CLAUDE.md
+.mcp.json
 test-results/
 playwright-report/

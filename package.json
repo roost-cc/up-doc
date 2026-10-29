@@ -1,7 +1,7 @@
 {
   "name": "up-doc",
   "version": "1.0.0",
-  "description": "Roost documentation server with client-side rendering",
+  "description": "Markdown documentation server with client-side rendering",
   "type": "module",
   "main": "docserver.js",
   "engines": {

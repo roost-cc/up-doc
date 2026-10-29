@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * up-doc — Roost documentation server.
+ * up-doc — markdown documentation server.
  *
  * Serves markdown files via a client-side SPA renderer. The SPA lives in the
  * server's own `web/` directory and is served at `/_/`. Content (markdown, HTML,
@@ -68,7 +68,7 @@ function sendError(res, error, requestPath) {
 function sendUnauthorized(res) {
   res.writeHead(401, {
     'Content-Type': 'text/plain',
-    'WWW-Authenticate': 'Basic realm="Roost Docs"',
+    'WWW-Authenticate': 'Basic realm="up-doc"',
   });
   res.end('401 - Unauthorized');
 }
@@ -260,7 +260,7 @@ function main() {
   process.on('SIGTERM', shutdown);
 
   server.listen(PORT, () => {
-    console.log(`Roost docs server at http://localhost:${PORT}/`);
+    console.log(`up-doc server at http://localhost:${PORT}/`);
     console.log(`  Content: ${DOC_DIR}`);
     console.log(`  SPA:     ${WEB_DIR}`);
     console.log(`  Auth:    ${AUTH_USER ? 'enabled' : 'disabled'}`);

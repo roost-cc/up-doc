@@ -194,7 +194,7 @@ npm run check-links -- [base-url] [--skip-file <path>] [--skip <regex>]
 
 Use against an already-running server — for example the docker docs
 container at `http://localhost:8082` (the default base URL). This is the
-flow used by CI / Docker setups in other Roost repos.
+flow for CI or Docker setups that run the server separately.
 
 ### What is checked
 
