@@ -9,6 +9,7 @@
  *   { op, match, action: 'create', file }   create `file`, then carry on
  *   { op, match, action: 'run', argv }      run `node ...argv` to its end, then carry on
  *   { op, match, action: 'retarget', link, to }  point the symlink `link` at `to`, then carry on
+ *   { op, match, action: 'partial', dir }   make only `dir`, then throw
  */
 
 import { spawnSync } from 'node:child_process';
@@ -34,6 +35,10 @@ for (const fault of faults) {
     if (fault.action === 'retarget') {
       fs.unlinkSync(fault.link);
       fs.symlinkSync(fault.to, fault.link);
+    }
+    if (fault.action === 'partial') {
+      fs.mkdirSync(fault.dir);
+      throw new Error(`injected ${fault.op} failure`);
     }
     return real.apply(this, args);
   };

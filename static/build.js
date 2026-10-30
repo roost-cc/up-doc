@@ -127,17 +127,34 @@ function write(dirs, docDir, viewer) {
 }
 
 /**
+ * The topmost directory of `dir` that does not exist yet, if any: what `mkdirSync` is about to
+ * make. Worked out first because a `mkdirSync` that fails part way says nothing of what it made.
+ *
+ * @param {string} dir
+ * @returns {string|undefined}
+ */
+function firstMissing(dir) {
+  let first;
+  for (let at = dir; !fs.existsSync(at); at = path.dirname(at)) first = at;
+  return first;
+}
+
+/**
  * Remove what a failed build wrote: its stage, then the parents of `--out` it made, which only go
  * if nothing else has used them. `--out` was never touched, so a failure here is only litter.
  *
  * @param {string} stage
  * @param {string} parent
- * @param {string|undefined} made  The first directory `mkdirSync` created.
+ * @param {string|undefined} made  The topmost directory the build set out to create.
  */
 function discard(stage, parent, made) {
   try {
+    // The stage may carry the permissions of --out, which need not let it be emptied
+    if (fs.existsSync(stage)) fs.chmodSync(stage, 0o700);
     fs.rmSync(stage, { recursive: true, force: true });
-    for (let dir = parent; made && dir.startsWith(made); dir = path.dirname(dir)) fs.rmdirSync(dir);
+    for (let dir = parent; made && dir.startsWith(made); dir = path.dirname(dir)) {
+      if (fs.existsSync(dir)) fs.rmdirSync(dir);
+    }
   } catch (error) {
     console.error(`Warning: could not clean up: ${error.message}`);
   }
@@ -155,10 +172,9 @@ function build(docDir, out) {
 
   const parent = path.dirname(target);
   const stage = `${target}.tmp-${randomUUID()}`;
-  /** @type {string|undefined} */
-  let made;
+  const made = firstMissing(parent);
   try {
-    made = fs.mkdirSync(parent, { recursive: true });
+    fs.mkdirSync(parent, { recursive: true });
     write(dirs, realDoc, path.join(stage, '_'));
     // The rename replaces an existing --out, whose permissions were someone's choice
     if (fs.existsSync(target)) fs.chmodSync(stage, fs.statSync(target).mode & 0o7777);

@@ -279,6 +279,7 @@ describe('build-static', () => {
     /** Each step of a build, failing there, with the tree it was writing left half done. */
     const STEPS = [
       ['making the parent', { op: 'mkdirSync', match: 'parent-', action: 'fail' }],
+      ['just after making the parent', { op: 'mkdirSync', match: 'parent-', action: 'fail', after: true }],
       ['making the stage', { op: 'mkdirSync', match: '.tmp-', action: 'fail', after: true }],
       ['a nested directory', { op: 'mkdirSync', match: '_/ls/guide', action: 'fail', after: true }],
       ['a viewer read', { op: 'readdirSync', match: '/web', action: 'fail' }],
@@ -316,6 +317,37 @@ describe('build-static', () => {
         assertNoStage(out, ['site']);
       });
     }
+
+    it('build_static_cleans_partially_created_parent', () => {
+      const doc = tree(tmp, { 'index.md': '# Home' });
+      const base = fs.mkdtempSync(path.join(tmp, 'atomic-'));
+      const top = path.join(base, 'parent-a');
+      const fault = { op: 'mkdirSync', match: 'parent-', action: 'partial', dir: top };
+      assert.notEqual(faulted(doc, path.join(top, 'b/site'), [fault]).status, 0);
+      assert.deepEqual(fs.readdirSync(base), []);
+    });
+
+    describe('build_static_cleans_stage_after_chmod_and_failed_rename', () => {
+      const FAULTS = [
+        ['the rename', { op: 'renameSync', match: '.tmp-', action: 'fail' }],
+        ['the chmod', { op: 'chmodSync', match: '.tmp-', action: 'fail', after: true }],
+      ];
+      for (const mode of [0o500, 0o400]) {
+        for (const [step, fault] of FAULTS) {
+          it(`--out of mode ${mode.toString(8)}, failing at ${step}`, () => {
+            const doc = tree(tmp, { 'a.md': 'A' });
+            const out = path.join(fs.mkdtempSync(path.join(tmp, 'atomic-')), 'site');
+            fs.mkdirSync(out);
+            fs.chmodSync(out, mode);
+            assert.notEqual(faulted(doc, out, [fault]).status, 0);
+            assertNoStage(out, ['site']);
+            assert.equal(fs.statSync(out).mode & 0o777, mode);
+            fs.chmodSync(out, 0o700);
+            assert.deepEqual(fs.readdirSync(out), []);
+          });
+        }
+      }
+    });
 
     describe('build_static_rejects_retargeted_output_symlink', () => {
       /** Each symlink a run depends on, and where it starts and ends up. */
