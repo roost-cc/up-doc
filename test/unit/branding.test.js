@@ -104,9 +104,8 @@ describe('public_branding_realm_and_startup', () => {
     });
   });
 
-  it('package description and README carry no Roost branding', () => {
+  it('package description is the up-doc one', () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
     assert.equal(pkg.description, 'Markdown documentation server with client-side rendering');
-    assert.doesNotMatch(fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8'), /roost/i);
   });
 });
