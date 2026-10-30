@@ -68,6 +68,12 @@ test.describe('path resolution', () => {
     await expect(page.locator('.error')).toContainText('File not found: /dir/nothing');
   });
 
+  test('a path with no extension and malformed encoding is not found', async ({ page }) => {
+    await page.goto(url('plain', '/100%'));
+
+    await expect(page.locator('.error')).toContainText('File not found: /100%');
+  });
+
   test('a markdown file that is not there is not found', async ({ page }) => {
     await page.goto(url('plain', '/dir/nothing.md'));
 

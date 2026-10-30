@@ -77,6 +77,9 @@ describe('docserver routes', () => {
     ['/_/src/..%2fdocs-sibling%2fsecret.md', 'encoded traversal into a sibling'],
     ['/_/ls/..%2f/index.json', 'encoded traversal in a listing'],
     ['/_/..%2fdocserver.js', 'encoded traversal out of web/'],
+    ['/_/src/100%.md', 'malformed percent-encoding under /_/src/'],
+    ['/_/ls/%ZZ/index.json', 'malformed percent-encoding under /_/ls/'],
+    ['/100%.png', 'malformed percent-encoding on a raw path'],
   ];
   for (const [pathname, label] of notFound) {
     it(`404: ${label}`, async () => assert.equal((await get(pathname)).status, 404, pathname));

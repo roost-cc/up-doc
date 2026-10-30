@@ -50,6 +50,15 @@ function buildBreadcrumbs(pathname) {
   return nav;
 }
 
+// A path segment decoded, or null when it is not valid percent-encoding
+function decodedName(segment) {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return null;
+  }
+}
+
 export class MarkdownRenderer {
   constructor(element, ...plugins) {
     this.element = element;
@@ -217,7 +226,7 @@ export class MarkdownRenderer {
   // A path with no extension: its parent's listing says whether it is a directory or a file
   async resolveBarePath(pathname) {
     const slash = pathname.lastIndexOf('/');
-    const name = decodeURIComponent(pathname.slice(slash + 1));
+    const name = decodedName(pathname.slice(slash + 1));
     const entries = await listing(pathname.slice(0, slash + 1));
     const entry = entries?.find((e) => e.name === name);
     if (!entry) throw new Error(`File not found: ${pathname}`);

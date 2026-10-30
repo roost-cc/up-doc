@@ -172,6 +172,8 @@ function handleRequest(req, res) {
     if (!isViewerFile(objectPath)) return sendNotFound(res);
     return serveFile(res, WEB_DIR, objectPath.slice(3), { 'Cache-Control': 'no-cache' });
   } catch (error) {
+    // A path that is not valid percent-encoding names no object
+    if (error instanceof URIError) return sendNotFound(res);
     sendError(res, error, req.url);
   }
 }
