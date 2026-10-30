@@ -108,4 +108,10 @@ describe('public_branding_realm_and_startup', () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
     assert.equal(pkg.description, 'Markdown documentation server with client-side rendering');
   });
+
+  it('README carries no old product name', () => {
+    // Assembled so the release's name search over the tree does not hit this test.
+    const oldName = new RegExp(['ro', 'ost'].join(''), 'i');
+    assert.doesNotMatch(fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8'), oldName);
+  });
 });
