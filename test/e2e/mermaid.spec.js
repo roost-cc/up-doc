@@ -1,6 +1,4 @@
-import { test, expect } from '@playwright/test';
-
-import { open } from './fixtures.js';
+import { expect, open, test } from './fixtures.js';
 
 /** Each page under `plain/mermaid/` and whether the parser renders a Mermaid fence on it. */
 const PAGES = [

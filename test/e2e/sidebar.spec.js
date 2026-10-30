@@ -1,6 +1,4 @@
-import { test, expect } from '@playwright/test';
-
-import { open, scrollsSideways, url } from './fixtures.js';
+import { expect, open, scrollsSideways, url, test } from './fixtures.js';
 
 test.describe('without site.json', () => {
   test('no sidebar, no toggle and no console output', async ({ page }) => {

@@ -1,6 +1,4 @@
-import { test, expect } from '@playwright/test';
-
-import { open, url } from './fixtures.js';
+import { expect, open, url, test } from './fixtures.js';
 
 const CDN = '**/npm/minisearch@*/**';
 

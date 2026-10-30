@@ -1,6 +1,4 @@
-import { test, expect } from '@playwright/test';
-
-import { open, scrollsSideways } from './fixtures.js';
+import { expect, open, scrollsSideways, test } from './fixtures.js';
 
 test.describe('updated line', () => {
   test('follows the first h1 and shows the Last-Modified date', async ({ page }) => {
