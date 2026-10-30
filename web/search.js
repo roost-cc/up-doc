@@ -8,7 +8,7 @@
  * out of this module. Ranking, fields, prefix and fuzzy settings are the file's, never ours.
  */
 
-import { addScript, pathHref, rootFiles } from './util.js';
+import { addScript, pathHref, rootFiles, srcUrl } from './util.js';
 import { minisearch } from './cdn-scripts.js';
 
 /** The MiniSearch major version a `search.json` must have: the one in the pinned CDN URL. */
@@ -66,7 +66,7 @@ export async function probe() {
 async function load() {
   let text;
   try {
-    const response = await fetch('/src:/search.json');
+    const response = await fetch(srcUrl('/search.json'));
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     text = await response.text();
   } catch (err) {

@@ -1,6 +1,4 @@
-import { test, expect } from '@playwright/test';
-
-import { open, scrollsSideways, url } from './fixtures.js';
+import { expect, open, scrollsSideways, url, test } from './fixtures.js';
 
 test.describe('without site.json', () => {
   test('no sidebar, no toggle and no console output', async ({ page }) => {
@@ -9,7 +7,7 @@ test.describe('without site.json', () => {
     page.on('pageerror', (e) => messages.push(`pageerror: ${e.message}`));
     const missing = [];
     page.on('response', (r) => {
-      if (r.status() === 404) missing.push(r.url());
+      if (r.status() >= 400) missing.push(r.url());
     });
 
     await open(page, 'plain', '/page.md');

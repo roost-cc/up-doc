@@ -43,7 +43,8 @@ const server = spawn('node', ['docserver.js'], {
   env: {
     ...process.env,
     DOC_PORT: String(port),
-    DOC_DIR: values['doc-dir'] || process.env.DOC_DIR || process.cwd(),
+    // Absolute: the server and the crawler run from the package root, not the caller's directory
+    DOC_DIR: path.resolve(values['doc-dir'] || process.env.DOC_DIR || '.'),
   },
   stdio: ['ignore', 'inherit', 'inherit'],
 });
@@ -95,7 +96,7 @@ if (!ready) {
   shutdown(1);
 } else {
   const crawlerArgs = [path.join('scripts', 'check-links.js'), base];
-  if (values['skip-file']) crawlerArgs.push('--skip-file', values['skip-file']);
+  if (values['skip-file']) crawlerArgs.push('--skip-file', path.resolve(values['skip-file']));
   for (const s of values.skip ?? []) crawlerArgs.push('--skip', s);
 
   const crawler = spawn('node', crawlerArgs, {

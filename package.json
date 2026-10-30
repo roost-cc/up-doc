@@ -1,14 +1,29 @@
 {
-  "name": "up-doc",
+  "name": "@roost-cc/up-doc",
   "version": "1.0.0",
   "description": "Markdown documentation server with client-side rendering",
   "type": "module",
-  "main": "docserver.js",
+  "exports": {
+    "./static/rewrite.cjs": "./static/rewrite.cjs"
+  },
   "engines": {
     "node": ">=26"
   },
   "bin": {
-    "up-doc": "docserver.js"
+    "up-doc": "bin/up-doc.js"
+  },
+  "files": [
+    "docserver.js",
+    "bin/",
+    "static/",
+    "scripts/",
+    "web/*.js",
+    "web/*.css",
+    "web/*.html"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/roost-cc/up-doc.git"
   },
   "scripts": {
     "start": "node docserver.js",

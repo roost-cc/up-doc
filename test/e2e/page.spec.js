@@ -1,10 +1,95 @@
-import { test, expect } from '@playwright/test';
+import { expect, open, scrollsSideways, url, test } from './fixtures.js';
 
-import { open, scrollsSideways } from './fixtures.js';
+test.describe('path resolution', () => {
+  test('a directory with an index file renders it, from one listing and no failed request', async ({ page }) => {
+    const failed = [];
+    const listings = [];
+    page.on('response', (r) => {
+      if (r.status() >= 400) failed.push(r.url());
+      if (r.url().includes('/_/ls/')) listings.push(new URL(r.url()).pathname);
+    });
+    await open(page, 'site', '/guide/');
+
+    await expect(page.locator('main.content > h1')).toBeVisible();
+    await expect(page.locator('.directory-listing')).toHaveCount(0);
+    expect(listings.sort()).toEqual(['/_/ls/guide/index.json', '/_/ls/index.json']);
+    expect(failed).toEqual([]);
+  });
+
+  test('a directory without an index file shows its listing, with no failed request', async ({ page }) => {
+    const failed = [];
+    page.on('response', (r) => {
+      if (r.status() >= 400) failed.push(r.url());
+    });
+    await open(page, 'plain', '/dir/');
+
+    await expect(page.locator('.directory-listing li a').first()).toHaveAttribute('href', '/dir/a%20b%231%25.md');
+    expect(failed).toEqual([]);
+  });
+
+  test('a listing link opens a file with a space, # and % in its name', async ({ page }) => {
+    await open(page, 'plain', '/dir/');
+    await page.locator('.directory-listing li a').first().click();
+
+    await expect(page.locator('body > h1')).toContainText('Odd name');
+  });
+
+  test('an empty directory says so', async ({ page }) => {
+    await page.route('**/_/ls/dir/index.json', (route) => route.fulfill({ json: [] }));
+    await open(page, 'plain', '/dir/');
+
+    await expect(page.locator('.directory-listing .empty')).toHaveText('This directory is empty');
+  });
+
+  test('a directory that does not exist shows the listing error', async ({ page }) => {
+    await page.goto(url('plain', '/nowhere/'));
+
+    await expect(page.locator('.error')).toHaveText('Failed to load directory listing');
+  });
+
+  test('a directory path without the slash gains it', async ({ page }) => {
+    await page.goto(url('plain', '/dir'));
+
+    await expect(page).toHaveURL(url('plain', '/dir/'));
+    await expect(page.locator('.directory-listing')).toBeVisible();
+  });
+
+  test('a file with no extension goes to its raw object', async ({ page }) => {
+    // No extension means no text type, and the browser would download it rather than navigate
+    await page.route('**/_/src/dir/notes', (route) => route.fulfill({ contentType: 'text/plain', body: 'notes' }));
+    await page.goto(url('plain', '/dir/notes'));
+
+    await expect(page).toHaveURL(url('plain', '/_/src/dir/notes'));
+  });
+
+  test('a path with no extension that is not there is not found', async ({ page }) => {
+    await page.goto(url('plain', '/dir/nothing'));
+
+    await expect(page.locator('.error')).toContainText('File not found: /dir/nothing');
+  });
+
+  test('a path with no extension and malformed encoding is not found', async ({ page }) => {
+    await page.goto(url('plain', '/100%'));
+
+    await expect(page.locator('.error')).toContainText('File not found: /100%');
+  });
+
+  test('a markdown file that is not there is not found', async ({ page }) => {
+    await page.goto(url('plain', '/dir/nothing.md'));
+
+    await expect(page.locator('.error')).toContainText('File not found: /dir/nothing.md');
+  });
+
+  test('a dotted path without a slash is the raw object, missing here', async ({ page }) => {
+    const response = await page.goto(url('plain', '/v1.2'));
+
+    expect(response?.ok()).toBe(false);
+  });
+});
 
 test.describe('updated line', () => {
   test('follows the first h1 and shows the Last-Modified date', async ({ page }) => {
-    const response = page.waitForResponse((r) => r.url().endsWith('/src:/other/notes.md'));
+    const response = page.waitForResponse((r) => r.url().endsWith('/_/src/other/notes.md'));
     await open(page, 'site', '/other/notes.md');
     const lastModified = (await response).headers()['last-modified'];
 
@@ -48,7 +133,7 @@ test.describe('updated line', () => {
   });
 
   test('is absent when the response has no Last-Modified', async ({ page }) => {
-    await page.route('**/src:/other/notes.md', async (route) => {
+    await page.route('**/_/src/other/notes.md', async (route) => {
       const response = await route.fetch();
       const headers = { ...response.headers() };
       delete headers['last-modified'];

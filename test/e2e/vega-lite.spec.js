@@ -1,6 +1,4 @@
-import { test, expect } from '@playwright/test';
-
-import { open } from './fixtures.js';
+import { expect, open, test } from './fixtures.js';
 
 /** Each chart page under `plain/vega-lite/` and the SVG marks its spec draws. */
 const CHARTS = [

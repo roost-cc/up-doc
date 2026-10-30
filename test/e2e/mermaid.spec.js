@@ -1,6 +1,4 @@
-import { test, expect } from '@playwright/test';
-
-import { open } from './fixtures.js';
+import { expect, open, test } from './fixtures.js';
 
 /** Each page under `plain/mermaid/` and whether the parser renders a Mermaid fence on it. */
 const PAGES = [
@@ -20,7 +18,7 @@ test.describe('mermaid mapping loads for fences in markdown containers', () => {
       await open(page, 'plain', `/mermaid/${name}`);
 
       await expect(page.locator('.mermaid-container')).toHaveCount(diagram ? 1 : 0);
-      expect(requests.includes('/src:/mermaid/api/docs.json')).toBe(diagram);
+      expect(requests.includes('/_/src/mermaid/api/docs.json')).toBe(diagram);
     });
   }
 });

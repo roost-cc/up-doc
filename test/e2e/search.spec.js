@@ -1,6 +1,4 @@
-import { test, expect } from '@playwright/test';
-
-import { open, url } from './fixtures.js';
+import { expect, open, url, test } from './fixtures.js';
 
 const CDN = '**/npm/minisearch@*/**';
 
@@ -44,7 +42,7 @@ test.describe('without search.json', () => {
     await expect(page.locator('body > h1')).toContainText('A page');
     await expect(page.locator('.search')).toHaveCount(0);
     expect(searchRequests(seen.requests)).toEqual([]);
-    expect(seen.requests.filter((r) => r.endsWith('/ls:/')).length).toBeLessThanOrEqual(1);
+    expect(seen.requests.filter((r) => r.endsWith('/_/ls/index.json')).length).toBeLessThanOrEqual(1);
     expect(seen.messages).toEqual([]);
   });
 });
@@ -79,7 +77,7 @@ test.describe('with search.json', () => {
 
     await find(page, 'tenets');
     expect(searchRequests(seen.requests)).toEqual([
-      `GET ${url('search', '/src:/search.json')}`,
+      `GET ${url('search', '/_/src/search.json')}`,
       'GET https://cdn.jsdelivr.net/npm/minisearch@7.2.0/dist/umd/index.js',
     ]);
     expect(seen.messages).toEqual([]);
@@ -183,7 +181,7 @@ test.describe('search unavailable', () => {
 
   test('a failed fetch of search.json disables the box', async ({ page }) => {
     const seen = watch(page);
-    await page.route('**/src:/search.json', (route) => route.abort());
+    await page.route('**/_/src/search.json', (route) => route.abort());
     await open(page, 'search', '/index.md');
     await expectDisabled(page, seen, /cannot fetch search\.json/);
   });

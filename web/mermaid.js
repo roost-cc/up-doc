@@ -1,6 +1,6 @@
 /* global mermaid, pako, hljs */
 import * as modal from './modal.js';
-import { lineIndexOf, addScript } from './util.js';
+import { lineIndexOf, addScript, srcUrl } from './util.js';
 import { MarkdownRenderer } from './index.js';
 import { mermaid as mermaid_cdn, pako, highlightjs } from './cdn-scripts.js';
 
@@ -49,14 +49,14 @@ export class MermaidRenderer {
   }
 
   // Load and process the docs.json file (only when needed). It is content, so it comes from
-  // /src: (any other *.json path answers with the SPA shell)
+  // /_/src/ (any other *.json path answers with the SPA shell)
   /**
    * @param {string} path
    */
   async loadDocsMapping(path) {
     try {
       const docsPath = new URL('api/docs.json', new URL(path, window.location.toString()));
-      const response = await fetch(`/src:${docsPath.pathname}`);
+      const response = await fetch(srcUrl(docsPath.pathname));
       if (!response.ok) {
         return;
       }
