@@ -41,6 +41,8 @@ export const test = base.extend({
   context: async ({ context }, use) => {
     await context.route((url) => url.hostname !== 'localhost', fromCdnCache);
     await use(context);
+    // A test may end with a CDN request still in flight
+    await context.unrouteAll({ behavior: 'ignoreErrors' });
   },
 });
 
