@@ -55,11 +55,11 @@ test.describe('path resolution', () => {
   });
 
   test('a file with no extension goes to its raw object', async ({ page }) => {
-    // No extension means no text type, so the browser downloads it rather than navigating
-    const download = page.waitForEvent('download');
+    // No extension means no text type, and the browser would download it rather than navigate
+    await page.route('**/_/src/dir/notes', (route) => route.fulfill({ contentType: 'text/plain', body: 'notes' }));
     await page.goto(url('plain', '/dir/notes'));
 
-    expect((await download).url()).toBe(url('plain', '/_/src/dir/notes'));
+    await expect(page).toHaveURL(url('plain', '/_/src/dir/notes'));
   });
 
   test('a path with no extension that is not there is not found', async ({ page }) => {

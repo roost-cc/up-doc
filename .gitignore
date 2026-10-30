@@ -12,3 +12,5 @@ CLAUDE.md
 .mcp.json
 test-results/
 playwright-report/
+# npm pack
+*.tgz
