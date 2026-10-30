@@ -84,7 +84,7 @@ export function stripCodeSpans(text) {
   }
   let out = '';
   let pos = 0;
-  for (let i = 0; i < runs.length; ) {
+  for (let i = 0; i < runs.length;) {
     const open = runs[i];
     let j = i + 1;
     while (j < runs.length && runs[j].length !== open.length) j++;
