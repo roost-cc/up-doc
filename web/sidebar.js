@@ -6,7 +6,7 @@
  * root-relative. Without a manifest there is no sidebar.
  */
 
-import { pathHref, rootFiles } from "./util.js";
+import { pathHref, rootFiles } from './util.js';
 
 /**
  * @typedef {{ title?: string, path?: string, entries?: Entry[] }} Entry
@@ -21,8 +21,8 @@ import { pathHref, rootFiles } from "./util.js";
  */
 export async function load() {
   try {
-    if (!(await rootFiles()).has("site.json")) return null;
-    const response = await fetch("/src:/site.json");
+    if (!(await rootFiles()).has('site.json')) return null;
+    const response = await fetch('/src:/site.json');
     if (!response.ok) return null;
     return parse(await response.json());
   } catch {
@@ -32,7 +32,7 @@ export async function load() {
 
 /** @param {unknown} value */
 function isObject(value) {
-  return !!value && typeof value === "object" && !Array.isArray(value);
+  return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
 /**
@@ -47,16 +47,12 @@ export function parse(value) {
   /** @param {unknown} entries @param {boolean} nest @returns {Entry[]|undefined} */
   const keep = (entries, nest) =>
     Array.isArray(entries)
-      ? entries
-          .filter(isObject)
-          .map((e) => (nest ? { ...e, entries: keep(e.entries, false) } : e))
+      ? entries.filter(isObject).map((e) => (nest ? { ...e, entries: keep(e.entries, false) } : e))
       : undefined;
   return {
     ...value,
     root: isObject(value.root) ? value.root : undefined,
-    sections: value.sections
-      .filter(isObject)
-      .map((s) => ({ ...s, entries: keep(s.entries, true) })),
+    sections: value.sections.filter(isObject).map((s) => ({ ...s, entries: keep(s.entries, true) })),
   };
 }
 
@@ -69,7 +65,7 @@ export function parse(value) {
  * @returns {string}
  */
 export function normalise(path) {
-  return path.replace(/\/index\.md$/i, "/");
+  return path.replace(/\/index\.md$/i, '/');
 }
 
 /**
@@ -90,7 +86,7 @@ export function current(pathname) {
 
 /** @param {string} pathname */
 function directoryOf(pathname) {
-  return pathname.slice(0, pathname.lastIndexOf("/") + 1);
+  return pathname.slice(0, pathname.lastIndexOf('/') + 1);
 }
 
 /**
@@ -105,7 +101,7 @@ function pathsOf(section) {
     paths.push(entry.path);
     for (const nested of entry.entries ?? []) paths.push(nested.path);
   }
-  return paths.filter((p) => typeof p === "string");
+  return paths.filter((p) => typeof p === 'string');
 }
 
 /**
@@ -119,9 +115,7 @@ function pathsOf(section) {
  */
 export function openSection(manifest, pathname) {
   const page = current(pathname);
-  const exact = manifest.sections.findIndex((s) =>
-    pathsOf(s).some((p) => normalise(p) === page),
-  );
+  const exact = manifest.sections.findIndex((s) => pathsOf(s).some((p) => normalise(p) === page));
   if (exact !== -1) return exact;
   let best = -1;
   let bestLength = 1;
@@ -143,11 +137,11 @@ export function openSection(manifest, pathname) {
  * @returns {HTMLAnchorElement}
  */
 function link(item, page) {
-  const a = document.createElement("a");
-  a.href = typeof item.path === "string" ? pathHref(item.path) : "#";
-  a.textContent = item.title ?? item.path ?? "";
-  if (typeof item.path === "string" && normalise(item.path) === page) {
-    a.setAttribute("aria-current", "page");
+  const a = document.createElement('a');
+  a.href = typeof item.path === 'string' ? pathHref(item.path) : '#';
+  a.textContent = item.title ?? item.path ?? '';
+  if (typeof item.path === 'string' && normalise(item.path) === page) {
+    a.setAttribute('aria-current', 'page');
   }
   return a;
 }
@@ -159,9 +153,9 @@ function link(item, page) {
  * @returns {HTMLUListElement}
  */
 function list(entries, page, nest) {
-  const ul = document.createElement("ul");
+  const ul = document.createElement('ul');
   for (const entry of entries) {
-    const li = document.createElement("li");
+    const li = document.createElement('li');
     li.appendChild(link(entry, page));
     if (nest && Array.isArray(entry.entries) && entry.entries.length) {
       li.appendChild(list(entry.entries, page, false));
@@ -180,20 +174,20 @@ function list(entries, page, nest) {
  */
 export function render(manifest, pathname) {
   const page = current(pathname);
-  const nav = document.createElement("nav");
-  nav.className = "sidebar";
-  nav.id = "sidebar";
-  nav.setAttribute("aria-label", "Site");
+  const nav = document.createElement('nav');
+  nav.className = 'sidebar';
+  nav.id = 'sidebar';
+  nav.setAttribute('aria-label', 'Site');
 
-  const root = link({ title: manifest.root?.title ?? "Home", path: "/" }, page);
-  root.className = "sidebar-root";
+  const root = link({ title: manifest.root?.title ?? 'Home', path: '/' }, page);
+  root.className = 'sidebar-root';
   nav.appendChild(root);
 
   const open = openSection(manifest, pathname);
   manifest.sections.forEach((section, i) => {
-    const details = document.createElement("details");
+    const details = document.createElement('details');
     if (i === open) details.open = true;
-    const summary = document.createElement("summary");
+    const summary = document.createElement('summary');
     summary.appendChild(link(section, page));
     details.appendChild(summary);
     if (Array.isArray(section.entries)) {
@@ -211,16 +205,16 @@ export function render(manifest, pathname) {
  * @returns {HTMLButtonElement}
  */
 export function toggle(nav) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "sidebar-toggle";
-  button.textContent = "Menu";
-  button.setAttribute("aria-controls", nav.id);
-  button.setAttribute("aria-expanded", "false");
-  button.addEventListener("click", () => {
-    const expanded = button.getAttribute("aria-expanded") !== "true";
-    button.setAttribute("aria-expanded", String(expanded));
-    document.body.classList.toggle("sidebar-open", expanded);
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'sidebar-toggle';
+  button.textContent = 'Menu';
+  button.setAttribute('aria-controls', nav.id);
+  button.setAttribute('aria-expanded', 'false');
+  button.addEventListener('click', () => {
+    const expanded = button.getAttribute('aria-expanded') !== 'true';
+    button.setAttribute('aria-expanded', String(expanded));
+    document.body.classList.toggle('sidebar-open', expanded);
   });
   return button;
 }

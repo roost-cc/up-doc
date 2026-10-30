@@ -166,6 +166,10 @@ Playwright needs its Chromium installed (`npx playwright install chromium`). The
 `search.json` files are built from their pages by `node test/fixtures/build-search.js`; a unit
 test fails when one is out of date.
 
+Formatting (prettier), file hygiene and the secrets scan run as [pre-commit](https://pre-commit.com)
+hooks: `pre-commit install`, or `pre-commit run --all-files` by hand. `test/fixtures/` is
+excluded, since some fixtures are malformed on purpose.
+
 ## Docker
 
 ```bash
@@ -194,7 +198,7 @@ npm run check-links -- [base-url] [--skip-file <path>] [--skip <regex>]
 
 Use against an already-running server — for example the docker docs
 container at `http://localhost:8082` (the default base URL). This is the
-flow used by CI / Docker setups in other Roost repos.
+flow for CI or Docker setups that run the server separately.
 
 ### What is checked
 

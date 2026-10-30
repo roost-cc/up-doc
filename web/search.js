@@ -8,8 +8,8 @@
  * out of this module. Ranking, fields, prefix and fuzzy settings are the file's, never ours.
  */
 
-import { addScript, pathHref, rootFiles } from "./util.js";
-import { minisearch } from "./cdn-scripts.js";
+import { addScript, pathHref, rootFiles } from './util.js';
+import { minisearch } from './cdn-scripts.js';
 
 /** The MiniSearch major version a `search.json` must have: the one in the pinned CDN URL. */
 export const MAJOR = Number(/minisearch@(\d+)\./.exec(minisearch.src)[1]);
@@ -30,20 +30,19 @@ export const LIMIT = 20;
  * @returns {string|null}
  */
 export function check(file) {
-  if (!file || typeof file !== "object" || Array.isArray(file)) {
-    return "search.json is not an object";
+  if (!file || typeof file !== 'object' || Array.isArray(file)) {
+    return 'search.json is not an object';
   }
-  if (file.engine !== "minisearch") {
+  if (file.engine !== 'minisearch') {
     return `search.json is for engine ${JSON.stringify(file.engine)}, not "minisearch"`;
   }
   const version = file.minisearch;
-  const major =
-    typeof version === "string" ? Number(version.split(".")[0]) : NaN;
+  const major = typeof version === 'string' ? Number(version.split('.')[0]) : NaN;
   if (major !== MAJOR) {
     return `search.json was built with minisearch ${JSON.stringify(version)}, not major ${MAJOR}`;
   }
-  for (const key of ["options", "searchOptions", "index"]) {
-    if (!file[key] || typeof file[key] !== "object") {
+  for (const key of ['options', 'searchOptions', 'index']) {
+    if (!file[key] || typeof file[key] !== 'object') {
       return `search.json has no "${key}"`;
     }
   }
@@ -56,7 +55,7 @@ export function check(file) {
  * @returns {Promise<boolean>}
  */
 export async function probe() {
-  return (await rootFiles()).has("search.json");
+  return (await rootFiles()).has('search.json');
 }
 
 /**
@@ -67,7 +66,7 @@ export async function probe() {
 async function load() {
   let text;
   try {
-    const response = await fetch("/src:/search.json");
+    const response = await fetch('/src:/search.json');
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     text = await response.text();
   } catch (err) {
@@ -77,7 +76,7 @@ async function load() {
   try {
     file = JSON.parse(text);
   } catch {
-    throw new Error("search.json is not valid JSON");
+    throw new Error('search.json is not valid JSON');
   }
   const reason = check(file);
   if (reason) throw new Error(reason);
@@ -86,8 +85,8 @@ async function load() {
   } catch {
     throw new Error(`cannot load ${minisearch.src}`);
   }
-  if (typeof window.MiniSearch?.loadJS !== "function") {
-    throw new Error("MiniSearch did not load");
+  if (typeof window.MiniSearch?.loadJS !== 'function') {
+    throw new Error('MiniSearch did not load');
   }
   try {
     const index = window.MiniSearch.loadJS(file.index, file.options);
@@ -102,16 +101,16 @@ async function load() {
  * @returns {HTMLLIElement}
  */
 function item(result) {
-  const li = document.createElement("li");
-  const a = document.createElement("a");
+  const li = document.createElement('li');
+  const a = document.createElement('a');
   a.href = pathHref(String(result.id));
   a.textContent = result.title || result.id;
   li.appendChild(a);
   if (result.section) {
-    const section = document.createElement("small");
-    section.className = "search-section";
+    const section = document.createElement('small');
+    section.className = 'search-section';
     section.textContent = result.section;
-    li.append(" ", section);
+    li.append(' ', section);
   }
   return li;
 }
@@ -122,19 +121,19 @@ function item(result) {
  * @returns {HTMLElement}
  */
 export function render() {
-  const container = document.createElement("div");
-  container.className = "search";
-  container.setAttribute("role", "search");
+  const container = document.createElement('div');
+  container.className = 'search';
+  container.setAttribute('role', 'search');
 
-  const box = document.createElement("input");
-  box.type = "search";
-  box.className = "search-box";
-  box.placeholder = "Search";
-  box.setAttribute("aria-label", "Search");
-  box.autocomplete = "off";
+  const box = document.createElement('input');
+  box.type = 'search';
+  box.className = 'search-box';
+  box.placeholder = 'Search';
+  box.setAttribute('aria-label', 'Search');
+  box.autocomplete = 'off';
 
-  const results = document.createElement("ul");
-  results.className = "search-results";
+  const results = document.createElement('ul');
+  results.className = 'search-results';
   results.hidden = true;
 
   container.append(box, results);
@@ -151,9 +150,9 @@ export function render() {
   const disable = (reason) => {
     console.warn(`[up-doc] search unavailable: ${reason}`);
     clear();
-    box.value = "";
+    box.value = '';
     box.disabled = true;
-    box.placeholder = "search unavailable";
+    box.placeholder = 'search unavailable';
   };
 
   const update = async () => {
@@ -186,13 +185,13 @@ export function render() {
     results.hidden = results.children.length === 0;
   };
 
-  box.addEventListener("input", update);
-  box.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      box.value = "";
+  box.addEventListener('input', update);
+  box.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      box.value = '';
       clear();
-    } else if (event.key === "Enter") {
-      const first = results.querySelector("a");
+    } else if (event.key === 'Enter') {
+      const first = results.querySelector('a');
       if (first) window.location.href = first.href;
     }
   });
