@@ -393,6 +393,23 @@ describe('build-static', () => {
       assert.equal(mode, 0o777 & ~process.umask());
     });
 
+    it('keeps the permissions of an existing empty --out', () => {
+      const doc = tree(tmp, { 'a.md': 'A' });
+      const out = path.join(fs.mkdtempSync(path.join(tmp, 'atomic-')), 'site');
+      fs.mkdirSync(out, { mode: 0o700 });
+      assert.equal(upDoc('build-static', '--doc-dir', doc, '--out', out).status, 0);
+      assert.equal(fs.statSync(out).mode & 0o777, 0o700);
+    });
+
+    it('a file changing during its copy keeps the time from before the change', () => {
+      const doc = tree(tmp, { 'a.md': 'A' });
+      fs.utimesSync(path.join(doc, 'a.md'), 1000, 1000);
+      const out = path.join(fs.mkdtempSync(path.join(tmp, 'atomic-')), 'site');
+      const fault = { op: 'copyFileSync', match: 'a.md', action: 'append' };
+      assert.equal(faulted(doc, out, [fault]).status, 0);
+      assert.equal(fs.statSync(path.join(out, '_/src/a.md')).mtimeMs, 1000000);
+    });
+
     it('builds through an --out that is a symlink to an empty directory', () => {
       const doc = tree(tmp, { 'a.md': 'A' });
       const real = fs.mkdtempSync(path.join(tmp, 'atomic-real-'));

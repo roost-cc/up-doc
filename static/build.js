@@ -18,7 +18,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
-import { isHidden, isViewerFile, listDir } from './listing.js';
+import { isViewerFile, listDir } from './listing.js';
 
 const WEB_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'web');
 const USAGE = 'Usage: up-doc build-static --doc-dir <root> --out <dir>';
@@ -160,6 +160,8 @@ function build(docDir, out) {
   try {
     made = fs.mkdirSync(parent, { recursive: true });
     write(dirs, docDir, path.join(stage, '_'));
+    // The rename replaces an existing --out, whose permissions were someone's choice
+    if (fs.existsSync(target)) fs.chmodSync(stage, fs.statSync(target).mode & 0o7777);
     fs.renameSync(stage, target);
   } catch (error) {
     discard(stage, parent, made);
