@@ -317,6 +317,60 @@ describe('build-static', () => {
       });
     }
 
+    describe('build_static_rejects_retargeted_output_symlink', () => {
+      /** Each symlink a run depends on, and where it starts and ends up. */
+      const LINKS = [
+        ['--out', (base) => ({ link: path.join(base, 'link'), out: path.join(base, 'link'), doc: `${base}/doc` })],
+        [
+          'a parent of --out',
+          (base) => ({ link: path.join(base, 'link'), out: path.join(base, 'link/site'), doc: `${base}/doc` }),
+        ],
+        [
+          '--doc-dir',
+          (base) => ({ link: path.join(base, 'doc-link'), out: `${base}/inside/site`, doc: `${base}/doc-link` }),
+        ],
+      ];
+      const MOMENTS = [
+        ['the scan', { op: 'readdirSync', match: '/doc' }],
+        ['the stage', { op: 'mkdirSync', match: '.tmp-' }],
+        ['a copy', { op: 'copyFileSync', match: 'a.md' }],
+      ];
+
+      /** A root, a directory inside it, and the links of `layout` pointing away from it. */
+      const setup = (layout) => {
+        const base = fs.realpathSync(fs.mkdtempSync(path.join(tmp, 'retarget-')));
+        for (const dir of ['doc/inside', 'outside', 'inside']) fs.mkdirSync(path.join(base, dir), { recursive: true });
+        fs.writeFileSync(path.join(base, 'doc/a.md'), 'A');
+        const paths = layout(base);
+        const isDoc = paths.link.endsWith('doc-link');
+        fs.symlinkSync(path.join(base, isDoc ? 'doc' : 'outside'), paths.link);
+        const to = path.join(base, isDoc ? 'inside' : 'doc/inside');
+        return { ...paths, base, to };
+      };
+
+      for (const [name, layout] of LINKS) {
+        for (const [moment, where] of MOMENTS) {
+          it(`${name} retargeted during ${moment} is refused and leaves nothing`, () => {
+            const { doc, out, link, to, base } = setup(layout);
+            const fault = { ...where, action: 'retarget', link, to };
+            const result = faulted(doc, out, [fault]);
+            assert.notEqual(result.status, 0, result.stderr);
+            for (const dir of ['doc/inside', 'outside', 'inside']) {
+              assert.deepEqual(fs.readdirSync(path.join(base, dir)), [], dir);
+            }
+          });
+        }
+      }
+
+      it('retargeted during the rename, the tree still lands where it was checked', () => {
+        const { doc, out, link, to, base } = setup(LINKS[0][1]);
+        const fault = { op: 'renameSync', match: '.tmp-', action: 'retarget', link, to };
+        assert.equal(faulted(doc, out, [fault]).status, 0);
+        assert.deepEqual(fs.readdirSync(path.join(base, 'doc/inside')), []);
+        assert.ok(fs.existsSync(path.join(base, 'outside/_/src/a.md')));
+      });
+    });
+
     it('a cleanup that fails too keeps the real error, an untouched --out, and a working retry', () => {
       const doc = tree(tmp, { 'index.md': '# Home' });
       const out = path.join(fs.mkdtempSync(path.join(tmp, 'atomic-')), 'site');

@@ -8,6 +8,7 @@
  *   { op, match, action: 'remove' }         delete the file the call names, then carry on
  *   { op, match, action: 'create', file }   create `file`, then carry on
  *   { op, match, action: 'run', argv }      run `node ...argv` to its end, then carry on
+ *   { op, match, action: 'retarget', link, to }  point the symlink `link` at `to`, then carry on
  */
 
 import { spawnSync } from 'node:child_process';
@@ -30,6 +31,10 @@ for (const fault of faults) {
     if (fault.action === 'remove') fs.unlinkSync(args[0]);
     if (fault.action === 'create') fs.writeFileSync(fault.file, 'new');
     if (fault.action === 'run') spawnSync(process.execPath, fault.argv);
+    if (fault.action === 'retarget') {
+      fs.unlinkSync(fault.link);
+      fs.symlinkSync(fault.to, fault.link);
+    }
     return real.apply(this, args);
   };
 }

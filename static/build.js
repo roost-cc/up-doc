@@ -79,17 +79,15 @@ function scan(docDir) {
 }
 
 /**
- * @param {string} docDir
- * @param {string} out
+ * @param {string} docDir  With symlinks resolved.
+ * @param {string} out  With symlinks resolved.
  * @returns {{ dir: string, entries: import('./listing.js').Entry[] }[]}  The content to write.
  */
 function check(docDir, out) {
   if (!fs.existsSync(docDir) || !fs.statSync(docDir).isDirectory()) {
     throw new Error(`--doc-dir ${docDir} is not a directory`);
   }
-  const realDoc = realPath(docDir);
-  const realOut = realPath(out);
-  if (realOut === realDoc || realOut.startsWith(realDoc + path.sep)) {
+  if (out === docDir || out.startsWith(docDir + path.sep)) {
     throw new Error(`--out ${out} is --doc-dir or inside it`);
   }
   if (fs.existsSync(out) && (!fs.statSync(out).isDirectory() || fs.readdirSync(out).length > 0)) {
@@ -150,18 +148,24 @@ function discard(stage, parent, made) {
  * @param {string} out
  */
 function build(docDir, out) {
-  const dirs = check(docDir, out);
-
+  // Resolved once: the build reads and writes only the paths that were checked
+  const realDoc = realPath(docDir);
   const target = realPath(out);
+  const dirs = check(realDoc, target);
+
   const parent = path.dirname(target);
   const stage = `${target}.tmp-${randomUUID()}`;
   /** @type {string|undefined} */
   let made;
   try {
     made = fs.mkdirSync(parent, { recursive: true });
-    write(dirs, docDir, path.join(stage, '_'));
+    write(dirs, realDoc, path.join(stage, '_'));
     // The rename replaces an existing --out, whose permissions were someone's choice
     if (fs.existsSync(target)) fs.chmodSync(stage, fs.statSync(target).mode & 0o7777);
+    // Node has no rename relative to an open directory, so one system call's gap stays after this
+    if (realPath(docDir) !== realDoc || realPath(out) !== target) {
+      throw new Error('--doc-dir or --out moved during the build');
+    }
     fs.renameSync(stage, target);
   } catch (error) {
     discard(stage, parent, made);
