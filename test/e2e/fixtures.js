@@ -44,7 +44,7 @@ export const test = base.extend({
   },
 });
 
-/** The fixture roots under `test/fixtures/` and the port each one's server listens on. */
+/** The fixture roots under `test/fixtures/` and the port each one's `docserver.js` listens on. */
 export const FIXTURES = {
   plain: 4181,
   site: 4182,
@@ -54,13 +54,18 @@ export const FIXTURES = {
   'search-malformed': 4186,
 };
 
+/** What a fixture's `test/static-server.js` port adds to its `docserver.js` port. */
+export const STATIC_PORT_OFFSET = 100;
+
 /**
+ * The URL on the host of the running project. Call it inside a test body.
+ *
  * @param {keyof typeof FIXTURES} name
  * @param {string} pathname
  * @returns {string}
  */
 export function url(name, pathname) {
-  return `http://localhost:${FIXTURES[name]}${pathname}`;
+  return `http://localhost:${FIXTURES[name] + test.info().project.metadata.portOffset}${pathname}`;
 }
 
 /**

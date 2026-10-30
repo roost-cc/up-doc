@@ -23,29 +23,89 @@ export function addScript(attributes) {
   return promise;
 }
 
-/** @type {Promise<Set<string>>|null} */
-let rootListing = null;
+/**
+ * @typedef {{ name: string, type: 'dir'|'file', size: number }} ListingEntry
+ */
 
 /**
- * The names of the files at the content root, from one `/ls:/` request per page. The listing
- * answers for any root, so asking whether an optional file is there costs no 404 (Chromium logs
- * every 404 to the console). An empty set when the listing fails.
+ * The URL of a content file's raw bytes. These paths are the layout `static/rewrite.cjs` passes
+ * through and `build-static` writes.
+ *
+ * @param {string} path  A root-relative path, percent-encoded as in a URL.
+ * @returns {string}
+ */
+export function srcUrl(path) {
+  return `/_/src${path}`;
+}
+
+/**
+ * The URL of a directory's listing.
+ *
+ * @param {string} dir  A root-relative directory, percent-encoded as in a URL.
+ * @returns {string}
+ */
+export function listingUrl(dir) {
+  return `/_/ls${dir.replace(/\/?$/, '/')}index.json`;
+}
+
+/**
+ * The file a directory shows: `index.md`, `INDEX.md`, `index.html`, then the same names in any
+ * case.
+ *
+ * @param {ListingEntry[]} entries
+ * @returns {string|null}
+ */
+export function indexName(entries) {
+  const files = entries.filter((e) => e?.type === 'file').map((e) => e.name);
+  for (const name of ['index.md', 'INDEX.md', 'index.html']) {
+    if (files.includes(name)) return name;
+  }
+  for (const name of ['index.md', 'index.html']) {
+    const found = files.find((file) => file.toLowerCase() === name);
+    if (found) return found;
+  }
+  return null;
+}
+
+/** @type {Map<string, Promise<ListingEntry[]|null>>} */
+const listings = new Map();
+
+/**
+ * A directory's entries, from one request per directory per page. The listing answers for any
+ * directory that exists, so asking what a directory holds costs no failed request (Chromium logs
+ * each one to the console, and a static host may answer 403 for a missing object rather than
+ * 404). Null when the listing fails.
+ *
+ * @param {string} dir  A root-relative directory, percent-encoded as in a URL.
+ * @returns {Promise<ListingEntry[]|null>}
+ */
+export function listing(dir) {
+  if (!listings.has(dir)) {
+    listings.set(
+      dir,
+      (async () => {
+        try {
+          const response = await fetch(listingUrl(dir));
+          if (!response.ok) return null;
+          const entries = await response.json();
+          return Array.isArray(entries) ? entries : null;
+        } catch {
+          return null;
+        }
+      })(),
+    );
+  }
+  return listings.get(dir);
+}
+
+/**
+ * The names of the files at the content root. An empty set when the listing fails.
  *
  * @returns {Promise<Set<string>>}
  */
-export function rootFiles() {
-  rootListing ??= (async () => {
-    try {
-      const response = await fetch('/ls:/');
-      if (!response.ok) return new Set();
-      const entries = await response.json();
-      if (!Array.isArray(entries)) return new Set();
-      return new Set(entries.filter((e) => e?.type === 'file').map((e) => e.name));
-    } catch {
-      return new Set();
-    }
-  })();
-  return rootListing;
+export async function rootFiles() {
+  const entries = (await listing('/')) ?? [];
+  return new Set(entries.filter((e) => e?.type === 'file').map((e) => e.name));
 }
 
 /**

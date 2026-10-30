@@ -4,7 +4,7 @@ import { VegaLiteRenderer } from './vega-lite.js';
 import { AsciinemaRenderer } from './asciinema.js';
 import * as modal from './modal.js';
 import * as openapi from './openapi.js';
-import { addScript } from './util.js';
+import { addScript, indexName, listing, srcUrl } from './util.js';
 import { highlightjs } from './cdn-scripts.js';
 import * as sidebar from './sidebar.js';
 import * as search from './search.js';
@@ -59,6 +59,7 @@ export class MarkdownRenderer {
     this.markdown = null;
     this.html = null;
     this.directoryPath = null;
+    this.directoryEntries = null;
     this.contentType = null;
     this.jsonContent = null;
     this.lastModified = null;
@@ -67,7 +68,7 @@ export class MarkdownRenderer {
   async init() {
     await this.load();
 
-    if (this.contentType === 'directory') return;
+    if (this.contentType === 'redirect' || this.contentType === 'directory') return;
 
     if (this.contentType === 'openapi') {
       await openapi.init();
@@ -88,6 +89,8 @@ export class MarkdownRenderer {
   }
 
   async render() {
+    if (this.contentType === 'redirect') return;
+
     if (this.contentType === 'directory') {
       await this.renderDirectoryListing();
       return;
@@ -176,13 +179,11 @@ export class MarkdownRenderer {
   }
 
   async renderDirectoryListing() {
-    const response = await fetch(`/ls:${this.directoryPath}`);
-    if (!response.ok) {
+    const entries = this.directoryEntries;
+    if (!entries) {
       this.element.innerHTML = '<div class="error">Failed to load directory listing</div>';
       return;
     }
-
-    const entries = await response.json();
 
     // Build breadcrumbs
     const nav = buildBreadcrumbs(this.directoryPath);
@@ -201,7 +202,7 @@ export class MarkdownRenderer {
         const li = document.createElement('li');
         li.className = entry.type;
         const a = document.createElement('a');
-        a.href = this.directoryPath + entry.name + (entry.type === 'dir' ? '/' : '');
+        a.href = this.directoryPath + encodeURIComponent(entry.name) + (entry.type === 'dir' ? '/' : '');
         a.textContent = entry.name + (entry.type === 'dir' ? '/' : '');
         li.appendChild(a);
         listing.appendChild(li);
@@ -213,33 +214,54 @@ export class MarkdownRenderer {
     this.element.appendChild(listing);
   }
 
+  // A path with no extension: its parent's listing says whether it is a directory or a file
+  async resolveBarePath(pathname) {
+    const slash = pathname.lastIndexOf('/');
+    const name = decodeURIComponent(pathname.slice(slash + 1));
+    const entries = await listing(pathname.slice(0, slash + 1));
+    const entry = entries?.find((e) => e.name === name);
+    if (!entry) throw new Error(`File not found: ${pathname}`);
+    const { search, hash } = window.location;
+    this.contentType = 'redirect';
+    window.location.replace(entry.type === 'dir' ? `${pathname}/${search}${hash}` : srcUrl(pathname) + search + hash);
+  }
+
   // Load content from URL
   async load() {
     try {
       const pathname = window.location.pathname;
+      let source = pathname;
 
       if (pathname.endsWith('.md')) {
         this.path = pathname;
         this.contentType = 'markdown';
       } else if (pathname.endsWith('/')) {
+        const entries = await listing(pathname);
+        const index = entries && indexName(entries);
+        if (!index) {
+          this.directoryPath = pathname;
+          this.directoryEntries = entries;
+          this.contentType = 'directory';
+          return;
+        }
         this.path = pathname;
-        this.contentType = 'markdown'; // may become 'directory' on 404
+        this.contentType = 'markdown';
+        source = pathname + encodeURIComponent(index);
       } else if (pathname.endsWith('.json')) {
         this.path = pathname;
         this.contentType = 'json'; // may become 'openapi' after parse
+      } else if (!pathname.slice(pathname.lastIndexOf('/')).includes('.')) {
+        await this.resolveBarePath(pathname);
+        return;
       } else {
         throw new Error('Unsupported file type');
       }
 
-      const response = await fetch(`/src:${this.path}`);
+      const response = await fetch(srcUrl(source));
 
       if (!response.ok) {
-        if (response.status === 404 && pathname.endsWith('/')) {
-          this.directoryPath = pathname;
-          this.contentType = 'directory';
-          return;
-        }
-        if (response.status === 404) {
+        // S3 behind Origin Access Control answers 403 for a missing object
+        if (response.status === 404 || response.status === 403) {
           throw new Error(`File not found: ${this.path}`);
         }
         throw new Error(`Failed to load ${this.path}`);

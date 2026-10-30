@@ -7,7 +7,7 @@ test.describe('without site.json', () => {
     page.on('pageerror', (e) => messages.push(`pageerror: ${e.message}`));
     const missing = [];
     page.on('response', (r) => {
-      if (r.status() === 404) missing.push(r.url());
+      if (r.status() >= 400) missing.push(r.url());
     });
 
     await open(page, 'plain', '/page.md');

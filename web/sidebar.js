@@ -6,7 +6,7 @@
  * root-relative. Without a manifest there is no sidebar.
  */
 
-import { pathHref, rootFiles } from './util.js';
+import { pathHref, rootFiles, srcUrl } from './util.js';
 
 /**
  * @typedef {{ title?: string, path?: string, entries?: Entry[] }} Entry
@@ -15,14 +15,14 @@ import { pathHref, rootFiles } from './util.js';
  */
 
 /**
- * Fetch `/src:/site.json`. Anything but an object with `sections[]` is no manifest.
+ * Fetch the root's `site.json`. Anything but an object with `sections[]` is no manifest.
  *
  * @returns {Promise<Manifest|null>}
  */
 export async function load() {
   try {
     if (!(await rootFiles()).has('site.json')) return null;
-    const response = await fetch('/src:/site.json');
+    const response = await fetch(srcUrl('/site.json'));
     if (!response.ok) return null;
     return parse(await response.json());
   } catch {

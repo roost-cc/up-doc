@@ -2,9 +2,11 @@
 
 /**
  * Crawl the documentation site and verify every link resolves.
- * Probes /src:<path> for each candidate link — that endpoint is the only one
- * that returns a real 404 for missing files (the SPA shell returns 200 for
- * any *.md/*.json/directory request).
+ * Probes /_/src/<path> for each candidate link — that prefix is the only one
+ * that answers for the file itself (the SPA shell returns 200 for any
+ * *.md/*.json/directory request). /_/src/ serves exact files only, so a link
+ * to a directory resolves through its /_/ls/ listing and passes only if the
+ * directory holds an index file.
  *
  * Usage:
  *   node check-links.js [base-url] [--skip-file <path>] [--skip <regex>]...
@@ -18,6 +20,7 @@
 import fs from 'node:fs';
 import { parseArgs } from 'node:util';
 
+import { indexName, listingUrl, srcUrl } from '../web/util.js';
 import { extractLinks } from './markdown-links.js';
 
 const { values, positionals } = parseArgs({
@@ -56,7 +59,7 @@ const broken = [];
 async function findEntry() {
   for (const candidate of ['/index.md', '/INDEX.md', '/README.md']) {
     try {
-      const res = await fetch(BASE + '/src:' + candidate, { method: 'HEAD' });
+      const res = await fetch(BASE + srcUrl(candidate), { method: 'HEAD' });
       if (res.status === 200) {
         checked.add(candidate);
         return candidate;
@@ -70,11 +73,17 @@ async function findEntry() {
 
 const queue = [await findEntry()];
 
+/** @param {string} path */
+async function hasIndexFile(path) {
+  const res = await fetch(BASE + listingUrl(path.replace(/[?#].*$/, '')));
+  return res.status === 200 && indexName(await res.json()) !== null;
+}
+
 async function urlExists(path) {
   if (checked.has(path)) return true;
   try {
-    const res = await fetch(BASE + '/src:' + path, { method: 'HEAD' });
-    if (res.status === 200) {
+    const res = await fetch(BASE + srcUrl(path), { method: 'HEAD' });
+    if (res.status === 200 || (await hasIndexFile(path))) {
       checked.add(path);
       return true;
     }
@@ -102,7 +111,7 @@ async function crawl(pagePath) {
 
   let text;
   try {
-    const res = await fetch(BASE + '/src:' + pagePath);
+    const res = await fetch(BASE + srcUrl(pagePath));
     if (res.status !== 200) {
       broken.push({ page: '(entry)', link: pagePath, status: res.status });
       return;

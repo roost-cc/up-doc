@@ -7,11 +7,14 @@
  * server's own `web/` directory and is served at `/_/`. Content (markdown, HTML,
  * images, etc.) is served from the configured `directory` root.
  *
- * Special URL prefixes:
- *   /_/*       → serves from the server's web/ directory (the SPA shell)
- *   /src:*     → serves raw content (used by the SPA to fetch markdown source)
- *   *.md       → redirects to /_/index.html (SPA renders client-side)
- *   /          → redirects to /_/index.html (SPA handles directory listing)
+ * Every request goes through `rewriteUri` (static/rewrite.cjs), the rule a static
+ * host applies to the tree `up-doc build-static` writes, so both answer alike:
+ *   /_/src/<path>           → raw content: exactly that file, a directory is a 404
+ *   /_/ls/<dir>/index.json  → the directory's listing (/_/ls/index.json for the root)
+ *   /_/*                    → the server's web/ directory (the SPA)
+ *   *.md, *.json            → /_/index.html (SPA renders client-side)
+ *   a trailing / or no dot  → /_/index.html (SPA resolves the path from a listing)
+ *   anything else           → /_/src<path>
  */
 
 import http from 'node:http';
@@ -19,6 +22,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import mime from 'mime-types';
+
+import { isHidden, isViewerFile, listDir } from './static/listing.js';
+import { rewriteUri } from './static/rewrite.cjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -34,6 +40,15 @@ const DOC_DIR = path.resolve(process.env.DOC_DIR || fileConfig.directory || '.')
 const WEB_DIR = path.resolve(__dirname, 'web');
 const AUTH_USER = process.env.DOC_USER || null;
 const AUTH_PASS = process.env.DOC_PASS || null;
+
+/**
+ * @param {string} rootDir
+ * @param {string} filePath
+ * @returns {boolean}
+ */
+function isInside(rootDir, filePath) {
+  return filePath === rootDir || filePath.startsWith(rootDir + path.sep);
+}
 
 /**
  * @param {string} filePath
@@ -88,27 +103,18 @@ function checkAuth(req) {
   return user === AUTH_USER && pass === AUTH_PASS;
 }
 
-function getIndexFile(dirPath, ...candidates) {
-  const files = fs.readdirSync(dirPath);
-  let indexFile = null;
-  for (const candidate of candidates) {
-    indexFile = files.filter((file) => file.match(candidate)).pop();
-    if (indexFile) break;
-  }
-  return indexFile;
-}
-
 /**
- * Serve a static file from a given root directory.
+ * Serve a file from a given root directory. Anything but a file there is a 404.
  * @param {http.ServerResponse} res
  * @param {string} rootDir
  * @param {string} relativePath
+ * @param {http.OutgoingHttpHeaders} [headers]
  */
-function serveStatic(res, rootDir, relativePath) {
+function serveFile(res, rootDir, relativePath, headers = {}) {
   const filePath = path.normalize(path.join(rootDir, relativePath));
 
   // Prevent path traversal
-  if (!filePath.startsWith(rootDir)) return sendNotFound(res);
+  if (!isInside(rootDir, filePath)) return sendNotFound(res);
   if (!fs.existsSync(filePath)) return sendNotFound(res);
 
   const stats = fs.statSync(filePath);
@@ -121,7 +127,7 @@ function serveStatic(res, rootDir, relativePath) {
       'Content-Type': mimeType,
       'Content-Length': content.length,
       'Last-Modified': stats.mtime.toUTCString(),
-      'Cache-Control': 'no-cache',
+      ...headers,
     });
     res.end(content);
   } catch (error) {
@@ -130,36 +136,20 @@ function serveStatic(res, rootDir, relativePath) {
 }
 
 /**
- * Serve a content file from DOC_DIR with directory/index resolution.
+ * Serve `/_/ls/<dir>/index.json`, the listing `build-static` writes at that path.
  * @param {http.ServerResponse} res
- * @param {string} requestPath
+ * @param {string} relativePath  The path after `/_/ls/`.
  */
-function serveContent(res, requestPath) {
-  const filePath = path.normalize(path.join(DOC_DIR, requestPath));
-  console.log(`  → ${filePath}`);
+function serveListing(res, relativePath) {
+  const match = /^(.*\/)?index\.json$/.exec(relativePath);
+  if (!match) return sendNotFound(res);
+  const dirPath = path.normalize(path.join(DOC_DIR, match[1] ?? ''));
 
-  if (filePath !== DOC_DIR && !filePath.startsWith(DOC_DIR + path.sep)) return sendNotFound(res);
-  if (!fs.existsSync(filePath)) return sendNotFound(res);
+  if (!isInside(DOC_DIR, dirPath)) return sendNotFound(res);
+  if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) return sendNotFound(res);
 
-  const stats = fs.statSync(filePath);
-  if (stats.isDirectory()) {
-    const indexFile = getIndexFile(filePath, 'index.md', 'INDEX.md', 'index.html', /^index\.md$/i, /^index\.html$/i);
-    if (indexFile) return serveContent(res, requestPath + '/' + indexFile);
-    return sendNotFound(res);
-  }
-
-  try {
-    const content = fs.readFileSync(filePath);
-    const mimeType = getMimeType(filePath);
-    res.writeHead(200, {
-      'Content-Type': mimeType,
-      'Content-Length': content.length,
-      'Last-Modified': stats.mtime.toUTCString(),
-    });
-    res.end(content);
-  } catch (error) {
-    sendError(res, error, filePath);
-  }
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify(listDir(dirPath)));
 }
 
 /**
@@ -171,64 +161,16 @@ function handleRequest(req, res) {
     if (!checkAuth(req)) return sendUnauthorized(res);
 
     const { pathname } = new URL(req.url, 'http://localhost');
-    const requestPath = decodeURIComponent(pathname);
-    console.log(`${req.method} ${requestPath}`);
+    const objectPath = decodeURIComponent(rewriteUri(pathname));
+    console.log(`${req.method} ${pathname} → ${objectPath}`);
 
-    // /_/* → serve from the server's web/ directory (SPA assets)
-    if (requestPath.startsWith('/_/')) {
-      return serveStatic(res, WEB_DIR, requestPath.slice(3));
-    }
+    // What build-static leaves out of the tree is not served either
+    if (objectPath.split('/').some(isHidden)) return sendNotFound(res);
 
-    // /src:* → serve raw content from DOC_DIR
-    if (requestPath.startsWith('/src:')) {
-      return serveContent(res, requestPath.slice(5));
-    }
-
-    // /ls:* → list directory contents as JSON
-    if (requestPath.startsWith('/ls:')) {
-      const dirPath = path.normalize(path.join(DOC_DIR, requestPath.slice(4)));
-      if (dirPath !== DOC_DIR && !dirPath.startsWith(DOC_DIR + path.sep)) return sendNotFound(res);
-      if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
-        return sendNotFound(res);
-      }
-      const entries = fs
-        .readdirSync(dirPath)
-        .filter((name) => !name.startsWith('.'))
-        .map((name) => {
-          const stat = fs.statSync(path.join(dirPath, name));
-          return {
-            name,
-            type: stat.isDirectory() ? 'dir' : 'file',
-            size: stat.size,
-          };
-        })
-        .sort((a, b) => {
-          if (a.type !== b.type) return a.type === 'dir' ? -1 : 1;
-          return a.name.localeCompare(b.name);
-        });
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(entries));
-      return;
-    }
-
-    // *.md → serve SPA shell (renders client-side)
-    if (requestPath.endsWith('.md')) {
-      return serveStatic(res, WEB_DIR, 'index.html');
-    }
-
-    // *.json → serve SPA shell (renders client-side)
-    if (requestPath.endsWith('.json')) {
-      return serveStatic(res, WEB_DIR, 'index.html');
-    }
-
-    // Directory request → serve SPA shell
-    const fullPath = path.normalize(path.join(DOC_DIR, requestPath));
-    if (fs.existsSync(fullPath) && fs.statSync(fullPath).isDirectory()) {
-      return serveStatic(res, WEB_DIR, 'index.html');
-    }
-
-    // Everything else → serve from DOC_DIR
-    return serveContent(res, requestPath);
+    if (objectPath.startsWith('/_/src/')) return serveFile(res, DOC_DIR, objectPath.slice(7));
+    if (objectPath.startsWith('/_/ls/')) return serveListing(res, objectPath.slice(6));
+    if (!isViewerFile(objectPath)) return sendNotFound(res);
+    return serveFile(res, WEB_DIR, objectPath.slice(3), { 'Cache-Control': 'no-cache' });
   } catch (error) {
     sendError(res, error, req.url);
   }
