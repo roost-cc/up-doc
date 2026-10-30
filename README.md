@@ -189,7 +189,7 @@ either. Copied files keep their modification time and symlinks are followed.
 The build writes nothing and exits non-zero when `--out` exists and is not empty, when `--out` is
 `--doc-dir` or inside it, when the root has a top-level `_` entry (`/_/` is reserved), when a
 content directory is named `index.json` (its parent's listing needs that path), or on a broken
-symlink.
+symlink. A copy that fails part way removes what it wrote, so the build can simply run again.
 
 ### The rewrite rule
 
@@ -227,7 +227,7 @@ Any other host needs to run the same rule before its object lookup. `rewriteUri(
 package's one export:
 
 ```js
-import { rewriteUri } from "@roost-cc/up-doc/static/rewrite.cjs";
+import { rewriteUri } from '@roost-cc/up-doc/static/rewrite.cjs';
 ```
 
 The "Updated" line reads `Last-Modified`, which S3 sets at upload rather than from the file. The

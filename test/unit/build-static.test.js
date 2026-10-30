@@ -204,6 +204,40 @@ describe('build-static', () => {
       assertRefused(['--doc-dir', doc, '--out', out]);
       assert.equal(fs.existsSync(out), false);
     });
+
+    it('a symlink cycle, writing nothing', () => {
+      const doc = tree(tmp, { 'index.md': '# Home' });
+      fs.symlinkSync(doc, path.join(doc, 'loop'));
+      const out = path.join(tmp, `cycle-${path.basename(doc)}`);
+      assertRefused(['--doc-dir', doc, '--out', out]);
+      assert.equal(fs.existsSync(out), false);
+    });
+  });
+
+  describe('a copy that fails part way', { skip: process.getuid?.() === 0 && 'root reads anything' }, () => {
+    /** @returns {string} a root with a file that passes every check and cannot be read */
+    const unreadable = () => {
+      const doc = tree(tmp, { 'index.md': '# Home', 'z/last.md': 'x' });
+      fs.chmodSync(path.join(doc, 'z/last.md'), 0);
+      return doc;
+    };
+
+    it('removes an --out it created, parents included, so the build can run again', () => {
+      const doc = unreadable();
+      const parent = path.join(tmp, `partial-${path.basename(doc)}`);
+      const out = path.join(parent, 'site');
+      assertRefused(['--doc-dir', doc, '--out', out]);
+      assert.equal(fs.existsSync(parent), false);
+
+      fs.chmodSync(path.join(doc, 'z/last.md'), 0o644);
+      assert.equal(upDoc('build-static', '--doc-dir', doc, '--out', out).status, 0);
+    });
+
+    it('leaves an existing empty --out in place and empty', () => {
+      const out = fs.mkdtempSync(path.join(tmp, 'partial-empty-'));
+      assertRefused(['--doc-dir', unreadable(), '--out', out], out);
+      assert.deepEqual(fs.readdirSync(out), []);
+    });
   });
 });
 

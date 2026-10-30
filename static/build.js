@@ -6,7 +6,8 @@
  *   /_/src/<path>              every content file
  *   /_/ls/<dir>/index.json     one listing per directory (/_/ls/index.json for the root)
  *
- * Every check runs before the first write, so a refused build leaves nothing behind.
+ * Every check runs before the first write, so a refused build leaves nothing behind, and a copy
+ * that fails part way removes what it wrote.
  */
 
 import fs from 'node:fs';
@@ -102,20 +103,26 @@ function build(docDir, out) {
   const dirs = check(docDir, out);
 
   const viewer = path.join(out, '_');
-  fs.mkdirSync(viewer, { recursive: true });
-  for (const name of fs.readdirSync(WEB_DIR).filter(isViewerFile)) {
-    copy(path.join(WEB_DIR, name), path.join(viewer, name));
-  }
-
-  for (const { dir, entries } of dirs) {
-    const src = path.join(viewer, 'src', dir);
-    const ls = path.join(viewer, 'ls', dir);
-    fs.mkdirSync(src, { recursive: true });
-    fs.mkdirSync(ls, { recursive: true });
-    fs.writeFileSync(path.join(ls, 'index.json'), JSON.stringify(entries));
-    for (const entry of entries) {
-      if (entry.type === 'file') copy(path.join(docDir, dir, entry.name), path.join(src, entry.name));
+  const created = /** @type {string} */ (fs.mkdirSync(viewer, { recursive: true }));
+  try {
+    for (const name of fs.readdirSync(WEB_DIR).filter(isViewerFile)) {
+      copy(path.join(WEB_DIR, name), path.join(viewer, name));
     }
+
+    for (const { dir, entries } of dirs) {
+      const src = path.join(viewer, 'src', dir);
+      const ls = path.join(viewer, 'ls', dir);
+      fs.mkdirSync(src, { recursive: true });
+      fs.mkdirSync(ls, { recursive: true });
+      fs.writeFileSync(path.join(ls, 'index.json'), JSON.stringify(entries));
+      for (const entry of entries) {
+        if (entry.type === 'file') copy(path.join(docDir, dir, entry.name), path.join(src, entry.name));
+      }
+    }
+  } catch (error) {
+    // A partial tree must not be deployed, and would refuse the next build as a non-empty --out
+    fs.rmSync(created, { recursive: true, force: true });
+    throw error;
   }
   const files = dirs.reduce((n, { entries }) => n + entries.filter((e) => e.type === 'file').length, 0);
   console.log(`Wrote ${files} files and ${dirs.length} listings to ${out}`);
