@@ -9,6 +9,33 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const PKG = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 const NPM = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+// npm's root metadata, then what runs. A file the package gains must be added here on purpose.
+const RUNTIME_FILES = [
+  'LICENSE.md',
+  'README.md',
+  'package.json',
+  'bin/up-doc.js',
+  'docserver.js',
+  'scripts/check-links.js',
+  'scripts/check.js',
+  'scripts/markdown-links.js',
+  'static/build.js',
+  'static/listing.js',
+  'static/rewrite.cjs',
+  'web/asciinema.js',
+  'web/cdn-scripts.js',
+  'web/index.css',
+  'web/index.html',
+  'web/index.js',
+  'web/markdown.js',
+  'web/mermaid.js',
+  'web/modal.js',
+  'web/openapi.js',
+  'web/search.js',
+  'web/sidebar.js',
+  'web/util.js',
+  'web/vega-lite.js',
+];
 
 describe('package.json', () => {
   it('is publishable as @roost-cc/up-doc', () => {
@@ -42,17 +69,9 @@ describe('the tarball', () => {
   });
   after(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
-  it('lists only the runtime files', () => {
+  it('package_tarball_contains_only_runtime_files', () => {
     const [{ files }] = JSON.parse(execFileSync(NPM, ['pack', '--dry-run', '--json'], { cwd: ROOT, encoding: 'utf8' }));
-    const paths = files.map((f) => f.path);
-    for (const file of ['docserver.js', 'bin/up-doc.js', 'static/rewrite.cjs', 'static/build.js', 'scripts/check.js']) {
-      assert.ok(paths.includes(file), file);
-    }
-    assert.ok(paths.includes('web/index.html'));
-    assert.deepEqual(
-      paths.filter((p) => /^(test|\.rrepo|\.git)|config\.json|Dockerfile/.test(p)),
-      [],
-    );
+    assert.deepEqual(files.map((f) => f.path).sort(), [...RUNTIME_FILES].sort());
   });
 
   it('installs and runs from node_modules/.bin, outside the repo', () => {

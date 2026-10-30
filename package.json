@@ -17,7 +17,9 @@
     "bin/",
     "static/",
     "scripts/",
-    "web/"
+    "web/*.js",
+    "web/*.css",
+    "web/*.html"
   ],
   "repository": {
     "type": "git",
