@@ -4,10 +4,11 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const BIN = path.join(ROOT, 'bin/up-doc.js');
+const FS_FAULT = path.join(ROOT, 'test/fs-fault.js');
 
 /** @param {string[]} args */
 function upDoc(...args) {
@@ -237,6 +238,170 @@ describe('build-static', () => {
       const out = fs.mkdtempSync(path.join(tmp, 'partial-empty-'));
       assertRefused(['--doc-dir', unreadable(), '--out', out], out);
       assert.deepEqual(fs.readdirSync(out), []);
+    });
+  });
+
+  describe('build_static_atomic_destination_and_snapshot', () => {
+    /**
+     * Run a build with `faults` (see test/fs-fault.js) injected into it.
+     *
+     * @param {string} doc
+     * @param {string} out
+     * @param {object[]} faults
+     */
+    const faulted = (doc, out, faults) =>
+      spawnSync(
+        process.execPath,
+        ['--import', pathToFileURL(FS_FAULT).href, BIN, 'build-static', '--doc-dir', doc, '--out', out],
+        { encoding: 'utf8', env: { ...process.env, FS_FAULT: JSON.stringify(faults) } },
+      );
+
+    /** Every listing under `out` names exactly the files beside it, at their real sizes. */
+    const assertCoherent = (out) => {
+      /** @param {string} dir */
+      const walk = (dir) => {
+        const src = path.join(out, '_/src', dir);
+        const listing = JSON.parse(fs.readFileSync(path.join(out, '_/ls', dir, 'index.json'), 'utf8'));
+        assert.deepEqual(listing.map((e) => e.name).sort(), fs.readdirSync(src).sort(), dir);
+        for (const entry of listing) {
+          if (entry.type === 'dir') walk(path.join(dir, entry.name));
+          else assert.equal(entry.size, fs.statSync(path.join(src, entry.name)).size, entry.name);
+        }
+      };
+      walk('');
+    };
+
+    /** Nothing but `expected` beside `out`, so no stage survives. */
+    const assertNoStage = (out, expected) => {
+      assert.deepEqual(fs.readdirSync(path.dirname(out)).sort(), expected);
+    };
+
+    /** Each step of a build, failing there, with the tree it was writing left half done. */
+    const STEPS = [
+      ['making the parent', { op: 'mkdirSync', match: 'parent-', action: 'fail' }],
+      ['making the stage', { op: 'mkdirSync', match: '.tmp-', action: 'fail', after: true }],
+      ['a nested directory', { op: 'mkdirSync', match: '_/ls/guide', action: 'fail', after: true }],
+      ['a viewer read', { op: 'readdirSync', match: '/web', action: 'fail' }],
+      ['a viewer copy', { op: 'copyFileSync', match: '/web/index.js', action: 'fail', after: true }],
+      ['a content copy', { op: 'copyFileSync', match: 'guide/intro.md', action: 'fail', after: true }],
+      ['a timestamp', { op: 'utimesSync', match: 'guide/intro.md', action: 'fail' }],
+      ['a listing', { op: 'writeFileSync', match: '_/ls/guide/index.json', action: 'fail', after: true }],
+      ['the rename', { op: 'renameSync', match: '.tmp-', action: 'fail' }],
+      ['a source file vanishing', { op: 'copyFileSync', match: 'guide/intro.md', action: 'remove' }],
+    ];
+
+    for (const [step, fault] of STEPS) {
+      it(`a failure at ${step} leaves nothing and the build can run again`, () => {
+        const doc = tree(tmp, { 'index.md': '# Home', 'guide/intro.md': 'x' });
+        const parent = fs.mkdtempSync(path.join(tmp, 'atomic-')) + '/parent-a/b';
+        const out = path.join(parent, 'site');
+        const result = faulted(doc, out, [fault]);
+        assert.notEqual(result.status, 0);
+        assert.match(result.stderr, /^Error: /);
+        assert.equal(fs.existsSync(path.dirname(path.dirname(parent)) + '/parent-a'), false);
+
+        fs.writeFileSync(path.join(doc, 'guide/intro.md'), 'x');
+        assert.equal(upDoc('build-static', '--doc-dir', doc, '--out', out).status, 0);
+        assertCoherent(out);
+        assertNoStage(out, ['site']);
+      });
+
+      it(`a failure at ${step} leaves an existing empty --out empty`, () => {
+        const doc = tree(tmp, { 'index.md': '# Home', 'guide/intro.md': 'x' });
+        const parent = fs.mkdtempSync(path.join(tmp, 'atomic-parent-'));
+        const out = path.join(parent, 'site');
+        fs.mkdirSync(out);
+        assert.notEqual(faulted(doc, out, [fault]).status, 0);
+        assert.deepEqual(fs.readdirSync(out), []);
+        assertNoStage(out, ['site']);
+      });
+    }
+
+    it('a cleanup that fails too keeps the real error, an untouched --out, and a working retry', () => {
+      const doc = tree(tmp, { 'index.md': '# Home' });
+      const out = path.join(fs.mkdtempSync(path.join(tmp, 'atomic-')), 'site');
+      const result = faulted(doc, out, [
+        { op: 'copyFileSync', match: 'index.md', action: 'fail', after: true },
+        { op: 'rmSync', match: '.tmp-', action: 'fail' },
+      ]);
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /Warning: could not clean up/);
+      assert.match(result.stderr, /Error: injected copyFileSync failure/);
+      assert.equal(fs.existsSync(out), false);
+
+      assert.equal(upDoc('build-static', '--doc-dir', doc, '--out', out).status, 0);
+      assertCoherent(out);
+    });
+
+    for (const existing of [false, true]) {
+      it(`two builds racing for ${existing ? 'an empty' : 'a new'} --out: one wins whole, one fails`, () => {
+        const first = tree(tmp, { 'a.md': 'A' });
+        const second = tree(tmp, { 'b.md': 'B' });
+        const out = path.join(fs.mkdtempSync(path.join(tmp, 'atomic-')), 'site');
+        if (existing) fs.mkdirSync(out);
+        const result = faulted(first, out, [
+          {
+            op: 'renameSync',
+            match: '.tmp-',
+            action: 'run',
+            argv: [BIN, 'build-static', '--doc-dir', second, '--out', out],
+          },
+        ]);
+        assert.notEqual(result.status, 0, 'the loser fails');
+        assert.deepEqual(fs.readdirSync(path.join(out, '_/src')), ['b.md']);
+        assertCoherent(out);
+        assertNoStage(out, ['site']);
+      });
+    }
+
+    const CHANGES = [
+      ['a file growing', { op: 'copyFileSync', match: 'a.md', action: 'append' }],
+      ['a file changing mid-tree', { op: 'copyFileSync', match: 'guide/b.md', action: 'append' }],
+    ];
+    for (const [change, fault] of CHANGES) {
+      it(`${change} after the scan still gives listings that match the copies`, () => {
+        const doc = tree(tmp, { 'a.md': 'A', 'guide/b.md': 'B' });
+        const out = path.join(fs.mkdtempSync(path.join(tmp, 'atomic-')), 'site');
+        assert.equal(faulted(doc, out, [fault]).status, 0);
+        assertCoherent(out);
+      });
+    }
+
+    it('a file appearing after the scan is neither listed nor copied', () => {
+      const doc = tree(tmp, { 'a.md': 'A' });
+      const out = path.join(fs.mkdtempSync(path.join(tmp, 'atomic-')), 'site');
+      const fault = { op: 'copyFileSync', match: 'a.md', action: 'create', file: path.join(doc, 'late.md') };
+      assert.equal(faulted(doc, out, [fault]).status, 0);
+      assertCoherent(out);
+      assert.equal(fs.existsSync(path.join(out, '_/src/late.md')), false);
+    });
+
+    it('a new file in --out during the build makes it fail and is kept', () => {
+      const doc = tree(tmp, { 'a.md': 'A' });
+      const out = fs.mkdtempSync(path.join(tmp, 'atomic-out-'));
+      const late = path.join(out, 'late.txt');
+      const fault = { op: 'renameSync', match: '.tmp-', action: 'create', file: late };
+      assert.notEqual(faulted(doc, out, [fault]).status, 0);
+      assert.deepEqual(fs.readdirSync(out), ['late.txt']);
+    });
+
+    it('gives the tree the ordinary permissions, not a private temporary directory’s', () => {
+      const doc = tree(tmp, { 'a.md': 'A' });
+      const out = path.join(fs.mkdtempSync(path.join(tmp, 'atomic-')), 'site');
+      assert.equal(upDoc('build-static', '--doc-dir', doc, '--out', out).status, 0);
+      const mode = fs.statSync(out).mode & 0o777;
+      assert.equal(mode, 0o777 & ~process.umask());
+    });
+
+    it('builds through an --out that is a symlink to an empty directory', () => {
+      const doc = tree(tmp, { 'a.md': 'A' });
+      const real = fs.mkdtempSync(path.join(tmp, 'atomic-real-'));
+      const link = path.join(fs.mkdtempSync(path.join(tmp, 'atomic-')), 'site');
+      fs.symlinkSync(real, link);
+      const result = upDoc('build-static', '--doc-dir', doc, '--out', link);
+      assert.equal(result.status, 0, result.stderr);
+      assert.ok(fs.lstatSync(link).isSymbolicLink());
+      assertCoherent(real);
     });
   });
 });

@@ -189,7 +189,9 @@ either. Copied files keep their modification time and symlinks are followed.
 The build writes nothing and exits non-zero when `--out` exists and is not empty, when `--out` is
 `--doc-dir` or inside it, when the root has a top-level `_` entry (`/_/` is reserved), when a
 content directory is named `index.json` (its parent's listing needs that path), or on a broken
-symlink. A copy that fails part way removes what it wrote, so the build can simply run again.
+symlink. The tree is built beside `--out` and renamed onto it as the last step, so `--out` gets the
+whole tree or nothing and a failed build can simply run again. That needs the parent of `--out` to
+be writable and on the same file system, so `--out` cannot be a mount point.
 
 ### The rewrite rule
 

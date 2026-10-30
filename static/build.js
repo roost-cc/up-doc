@@ -6,10 +6,13 @@
  *   /_/src/<path>              every content file
  *   /_/ls/<dir>/index.json     one listing per directory (/_/ls/index.json for the root)
  *
- * Every check runs before the first write, so a refused build leaves nothing behind, and a copy
- * that fails part way removes what it wrote.
+ * Every check runs before the first write, so a refused build leaves nothing behind. The tree is
+ * built in a directory beside `--out` and renamed onto it as the last step: `--out` holds the
+ * whole tree or nothing, a rename onto a directory that has since filled fails, and each listing
+ * is written from the files as copied, so it matches them whatever the source did meanwhile.
  */
 
+import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -21,15 +24,18 @@ const WEB_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..',
 const USAGE = 'Usage: up-doc build-static --doc-dir <root> --out <dir>';
 
 /**
- * Copy a file, following a symlink, and keep its modification time.
+ * Copy a file, following a symlink, and keep its modification time. The time is read first, so a
+ * source that changes during the copy looks newer than this copy to the next build.
  *
  * @param {string} from
  * @param {string} to
+ * @returns {number}  The size of the copy.
  */
 function copy(from, to) {
-  fs.copyFileSync(from, to);
   const { atime, mtime } = fs.statSync(from);
+  fs.copyFileSync(from, to);
   fs.utimesSync(to, atime, mtime);
+  return fs.statSync(to).size;
 }
 
 /**
@@ -96,32 +102,67 @@ function check(docDir, out) {
 }
 
 /**
+ * Write the whole tree under `viewer`, the directory that becomes `/_/`.
+ *
+ * @param {{ dir: string, entries: import('./listing.js').Entry[] }[]} dirs
+ * @param {string} docDir
+ * @param {string} viewer
+ */
+function write(dirs, docDir, viewer) {
+  fs.mkdirSync(viewer, { recursive: true });
+  for (const name of fs.readdirSync(WEB_DIR).filter(isViewerFile)) {
+    copy(path.join(WEB_DIR, name), path.join(viewer, name));
+  }
+
+  for (const { dir, entries } of dirs) {
+    const src = path.join(viewer, 'src', dir);
+    const ls = path.join(viewer, 'ls', dir);
+    fs.mkdirSync(src, { recursive: true });
+    fs.mkdirSync(ls, { recursive: true });
+    for (const entry of entries) {
+      if (entry.type === 'file') {
+        entry.size = copy(path.join(docDir, dir, entry.name), path.join(src, entry.name));
+      }
+    }
+    fs.writeFileSync(path.join(ls, 'index.json'), JSON.stringify(entries));
+  }
+}
+
+/**
+ * Remove what a failed build wrote: its stage, then the parents of `--out` it made, which only go
+ * if nothing else has used them. `--out` was never touched, so a failure here is only litter.
+ *
+ * @param {string} stage
+ * @param {string} parent
+ * @param {string|undefined} made  The first directory `mkdirSync` created.
+ */
+function discard(stage, parent, made) {
+  try {
+    fs.rmSync(stage, { recursive: true, force: true });
+    for (let dir = parent; made && dir.startsWith(made); dir = path.dirname(dir)) fs.rmdirSync(dir);
+  } catch (error) {
+    console.error(`Warning: could not clean up: ${error.message}`);
+  }
+}
+
+/**
  * @param {string} docDir
  * @param {string} out
  */
 function build(docDir, out) {
   const dirs = check(docDir, out);
 
-  const viewer = path.join(out, '_');
-  const created = /** @type {string} */ (fs.mkdirSync(viewer, { recursive: true }));
+  const target = realPath(out);
+  const parent = path.dirname(target);
+  const stage = `${target}.tmp-${randomUUID()}`;
+  /** @type {string|undefined} */
+  let made;
   try {
-    for (const name of fs.readdirSync(WEB_DIR).filter(isViewerFile)) {
-      copy(path.join(WEB_DIR, name), path.join(viewer, name));
-    }
-
-    for (const { dir, entries } of dirs) {
-      const src = path.join(viewer, 'src', dir);
-      const ls = path.join(viewer, 'ls', dir);
-      fs.mkdirSync(src, { recursive: true });
-      fs.mkdirSync(ls, { recursive: true });
-      fs.writeFileSync(path.join(ls, 'index.json'), JSON.stringify(entries));
-      for (const entry of entries) {
-        if (entry.type === 'file') copy(path.join(docDir, dir, entry.name), path.join(src, entry.name));
-      }
-    }
+    made = fs.mkdirSync(parent, { recursive: true });
+    write(dirs, docDir, path.join(stage, '_'));
+    fs.renameSync(stage, target);
   } catch (error) {
-    // A partial tree must not be deployed, and would refuse the next build as a non-empty --out
-    fs.rmSync(created, { recursive: true, force: true });
+    discard(stage, parent, made);
     throw error;
   }
   const files = dirs.reduce((n, { entries }) => n + entries.filter((e) => e.type === 'file').length, 0);
