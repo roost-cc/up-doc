@@ -6,10 +6,11 @@
  *   /_/src/<path>              every content file
  *   /_/ls/<dir>/index.json     one listing per directory (/_/ls/index.json for the root)
  *
- * Every check runs before the first write, so a refused build leaves nothing behind. The tree is
- * built in a directory beside `--out` and renamed onto it as the last step: `--out` holds the
- * whole tree or nothing, a rename onto a directory that has since filled fails, and each listing
- * is written from the files as copied, so it matches them whatever the source did meanwhile.
+ * The checks run before the first write, and `--doc-dir` and `--out` are confirmed unmoved just
+ * before the rename, so a refused build leaves nothing behind. The tree is built in a directory
+ * beside `--out` and renamed onto it as the last step: `--out` holds the whole tree or nothing, a
+ * rename onto a directory that has since filled fails, and each listing is written from the files
+ * as copied, so it matches them whatever the source did meanwhile.
  */
 
 import { randomUUID } from 'node:crypto';
