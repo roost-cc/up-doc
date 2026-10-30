@@ -13,6 +13,9 @@
   entry: bin/run-gitleaks
   language: script
   pass_filenames: false
+  # The scan covers the whole staged change, so it must run even when every
+  # staged path is excluded by the consumer's filters (S-1154).
+  always_run: true
   stages: [pre-commit]
   minimum_pre_commit_version: 3.2.0
 

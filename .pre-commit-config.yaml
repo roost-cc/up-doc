@@ -14,6 +14,7 @@ repos:
         exclude: ^\.rrepo-shared/
         stages: [pre-commit]
         pass_filenames: false
+        always_run: true
       - id: ruff
         name: ruff check (shared-config)
         entry: .rrepo-shared/bin/run-ruff
@@ -35,7 +36,7 @@ repos:
         entry: prettier --config .rrepo-shared/prettier.config.cjs --ignore-unknown --write
         language: node
         types_or: [javascript, jsx, ts, tsx, css, scss, json, yaml, markdown, html]
-        additional_dependencies: [prettier@3.6.2]
+        additional_dependencies: [prettier@3.9.10]
         exclude: ^\.rrepo-shared/
         stages: [pre-commit]
       - id: file-hygiene
@@ -49,7 +50,7 @@ repos:
         name: commitlint (shared-config)
         entry: commitlint --config .rrepo-shared/commitlint.config.cjs --edit
         language: node
-        additional_dependencies: ['@commitlint/cli@21.2.1', '@commitlint/config-conventional@21.2.0']
+        additional_dependencies: ['@commitlint/cli@21.2.4', '@commitlint/config-conventional@21.2.4']
         exclude: ^\.rrepo-shared/
         stages: [commit-msg]
 

@@ -1,6 +1,6 @@
 {
   "source": "roost-cc/shared-config",
-  "rev": "v0.1.1",
+  "rev": "v0.1.2",
   "files": [
     ".gitleaks.toml",
     ".pre-commit-hooks.yaml",
