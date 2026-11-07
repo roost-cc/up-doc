@@ -1,0 +1,6 @@
+# Prettier must not format these. Every prettier run reads this file: the pre-commit hook, ppp,
+# and the editor hook that runs ppp after each edit.
+#
+# test/fixtures/: test inputs, kept byte for byte as the tests expect them. Some are invalid on
+# purpose, such as search-malformed/search.json.
+test/fixtures/
